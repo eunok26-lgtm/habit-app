@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="할 일">
+<meta name="theme-color" content="#fdf8f0">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
 <title>오늘 할 일</title>
 <style>
   :root{
@@ -19,7 +24,10 @@
     font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,-apple-system,sans-serif;
     background:var(--bg); color:var(--ink);
     min-height:100vh; overscroll-behavior:none;
+    /* 앱처럼 쓰이도록 — 길게 눌러 글자 선택·복사 메뉴가 뜨지 않게 */
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
   }
+  input, textarea{-webkit-user-select:text; user-select:text}
   button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit}
 
   .wrap{max-width:760px; margin:0 auto; padding:20px 16px 120px; transition:max-width .25s ease}
