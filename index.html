@@ -573,6 +573,7 @@
 </div>
 
 <script>
+const APP_VERSION = '2026-08-20a';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -1071,6 +1072,14 @@ function renderParent(){
     </div>
 
     <div class="pcard">
+      <h4>🔄 앱 버전 <span style="color:var(--muted);font-weight:600">${APP_VERSION}</span></h4>
+      <p class="hint" style="margin:0 0 12px">
+        새 기능이 안 보이면 눌러 주세요. 기록은 지워지지 않습니다.
+      </p>
+      <button class="btn ghost wide" id="pUpdate">최신 버전 받기</button>
+    </div>
+
+    <div class="pcard">
       <h4>🔑 비밀번호</h4>
       <p class="hint" style="margin:0 0 12px">부모 모드에 들어올 때 쓰는 네 자리예요.</p>
       <button class="btn ghost wide" id="pPin">비밀번호 바꾸기</button>
@@ -1100,6 +1109,7 @@ $('#viewParent').addEventListener('click', e=>{
   }
   if(t.id === 'pExit') return switchView('today');
   if(t.id === 'pPin')  return openPin('change');
+  if(t.id === 'pUpdate') return forceUpdate();
 
   if(t.id === 'gSave' || t.id === 'gTest'){
     const g = gcal();
@@ -1557,6 +1567,27 @@ $('#cheerClose').addEventListener('click', ()=> $('#cheer').classList.remove('op
 /* ==========================================================
    시작
    ========================================================== */
+/* 새 버전이 올라오면 자동으로 받아오도록 */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(()=>{});
+  });
+}
+
+/* 설정의 "최신 버전 받기" 버튼이 부르는 함수 */
+async function forceUpdate(){
+  try{
+    if('caches' in window){
+      for(const k of await caches.keys()) await caches.delete(k);
+    }
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+    }
+  }catch(e){}
+  location.reload();
+}
+
 (function init(){
   if(!storageOK) $('#storageWarn').style.display = '';
   const k = todayKey();
