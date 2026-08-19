@@ -1,0 +1,5 @@
+# 개인 설정이 담긴 파일은 올리지 않습니다
+*.local.*
+secrets.*
+.DS_Store
+Thumbs.db
