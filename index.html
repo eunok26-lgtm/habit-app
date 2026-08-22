@@ -62,6 +62,9 @@
   .slot-head{display:flex; align-items:center; gap:9px; margin:0 0 12px 4px}
   .slot-dot{width:12px; height:12px; border-radius:50%}
   .slot-name{font-size:17px; font-weight:800}
+  .slot-head[data-slot]{cursor:pointer; border-radius:12px; padding:4px 8px; margin-left:-4px}
+  .slot-head[data-slot]:active{background:var(--line)}
+  .slot-pen{font-size:13px; opacity:.55}
   .slot-sub{font-size:13px; color:var(--muted); font-weight:600; margin-left:auto; margin-right:4px}
 
   /* ---------- 할 일 카드 ---------- */
@@ -155,6 +158,23 @@
     font-size:12px; font-weight:800; color:#e8862c; background:#fff6ec;
     border-radius:8px; padding:3px 7px; margin-left:6px;
   }
+
+  /* 날짜 이동 */
+  .datenav{display:flex; align-items:center; gap:10px; margin:14px 0 4px}
+  .datenav > button{
+    flex:0 0 auto; width:52px; height:52px; border-radius:16px;
+    border:2px solid var(--line); background:var(--card);
+    font-size:26px; font-weight:800; color:var(--muted); line-height:1;
+  }
+  .datenav > button:active{background:var(--line); transform:scale(.94)}
+  .dmid{flex:1; text-align:center; min-width:0}
+  .dbig{font-size:19px; font-weight:800; letter-spacing:-.3px}
+  .dmid button{
+    margin-top:5px; font-size:13px; font-weight:800; color:#fff;
+    background:var(--accent); border-radius:999px; padding:5px 13px;
+  }
+  body.notoday .prog-fill{background:linear-gradient(90deg,#c9bcab,#a9998a)}
+  body.notoday .prog-count{color:var(--muted)}
 
   /* 오늘 화면 편집 모드 */
   .editbar{display:flex; justify-content:flex-end; margin:-14px 0 14px}
@@ -455,9 +475,18 @@
 
   <!-- 오늘 -->
   <section id="viewToday">
+    <div class="datenav">
+      <button id="dPrev" aria-label="이전 날">‹</button>
+      <div class="dmid">
+        <div class="dbig" id="dLabel"></div>
+        <button id="dToday" style="display:none">오늘로</button>
+      </div>
+      <button id="dNext" aria-label="다음 날">›</button>
+    </div>
+
     <div class="prog-wrap">
       <div class="prog-top">
-        <span class="prog-label">오늘 얼마나 했을까?</span>
+        <span class="prog-label" id="progLabel">오늘 얼마나 했을까?</span>
         <span class="prog-count" id="progCount">0 / 0</span>
       </div>
       <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
@@ -465,9 +494,6 @@
     <div class="editbar"><button id="editToggle">✏️ 고치기</button></div>
     <div id="todayList"></div>
   </section>
-
-  <!-- 이번 주 -->
-  <section id="viewWeek" style="display:none"></section>
 
   <!-- 일정 (구글 캘린더) -->
   <section id="viewSched" style="display:none"></section>
@@ -478,7 +504,6 @@
 
 <nav class="tabbar">
   <button class="tab on" data-view="today">오늘</button>
-  <button class="tab" data-view="week">이번 주</button>
   <button class="tab" data-view="sched">일정</button>
 </nav>
 
@@ -534,6 +559,25 @@
   </div>
 </div>
 
+<!-- 시간대 이름 바꾸기 -->
+<div class="modal" id="slotModal">
+  <div class="sheet" style="max-width:400px">
+    <h3>시간대 이름 바꾸기</h3>
+    <p class="sub">아이가 알아보기 쉬운 말로 바꿔 주세요.</p>
+
+    <label class="fl">이름</label>
+    <input type="text" id="slotName" placeholder="예: 아침, 학교 다녀와서, 자기 전">
+
+    <label class="fl">그림</label>
+    <div class="icons" id="slotIcons" style="max-height:none"></div>
+
+    <div class="row">
+      <button class="btn ghost" data-close>취소</button>
+      <button class="btn accent" id="slotSave">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- 큰 타이머 -->
@@ -573,7 +617,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-20a';
+const APP_VERSION = '2026-08-23a';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -587,24 +631,40 @@ const DEFAULT_GCAL_KEY = '';   // 위와 같음
    상수
    ========================================================== */
 const DAYS = ['월','화','수','목','금','토','일'];
-const SLOTS = [
-  {id:'morning', name:'아침',            emoji:'🌅', color:'var(--morning)', time:'일어나서'},
-  {id:'after',   name:'학교 다녀와서',    emoji:'🎒', color:'var(--after)',   time:'오후'},
-  {id:'night',   name:'잘 준비',          emoji:'🌙', color:'var(--night)',   time:'자기 전'}
+/* 시간대는 이름을 바꿀 수 있어서 저장소에 들어갑니다 (db.slots) */
+const DEFAULT_SLOTS = [
+  {id:'morning', name:'아침', emoji:'🌅', color:'var(--morning)'},
+  {id:'night',   name:'저녁', emoji:'🌙', color:'var(--night)'}
 ];
+const SLOT_ICONS = ['🌅','☀️','🌤️','🎒','🍚','🌙','⭐','🛏️','📚','🏠'];
+
+function slots(){
+  if(!db.slots || !db.slots.length) db.slots = DEFAULT_SLOTS.map(s=>({...s}));
+  return db.slots;
+}
+/* 없어진 시간대(예전 '학교 다녀와서')에 남은 할 일은 마지막 시간대로 옮깁니다 */
+function fixSlots(){
+  const ids = slots().map(s=>s.id);
+  const last = ids[ids.length-1];
+  let moved = 0;
+  Object.values(db.plan || {}).forEach(list=>{
+    (list||[]).forEach(it=>{ if(!ids.includes(it.slot)){ it.slot = last; moved++; } });
+  });
+  (db.presets||[]).forEach(p=>{ if(!ids.includes(p.slot)) p.slot = last; });
+  if(moved) save();
+}
 const ICONS = ['🪥','🛏️','🧦','🍚','🎒','📚','✏️','🧼','🚿','🧸','🥋','🎹','⚽','🎨','🧹','💊','🐶','📝','🍎','🧃','🎧','🌙','⏰','💧'];
 const DURS = [0, 3, 5, 10, 15, 20, 30];   // 분 · 0이면 타이머 없음
 
 /* 처음 열었을 때 깔리는 기본 루틴  [이름, 그림, 타이머(분)]
    맛보기로 시간대마다 하나씩만 넣어둡니다. 나머지는 부모 모드에서 추가하세요. */
 const SEED_ROUTINES = [
-  {slot:'morning', days:[0,1,2,3,4],       items:[['양치하기','🪥',3]]},
-  {slot:'after',   days:[0,1,2,3,4],       items:[['숙제하기','✏️',20]]},
-  {slot:'night',   days:[0,1,2,3,4,5,6],   items:[['내일 준비물','🎒',0]]}
+  {slot:'morning', days:[0,1,2,3,4],     items:[['세수하기','🧼',0],  ['양치하기','🪥',3]]},
+  {slot:'night',   days:[0,1,2,3,4,5,6], items:[['숙제하기','✏️',20], ['내일 준비물','🎒',0]]}
 ];
 const SEED_PRESETS = [
-  ['태권도','🥋','after',0],['피아노','🎹','after',20],['축구','⚽','after',0],
-  ['그림 그리기','🎨','after',0],['방 청소','🧹','after',10],['일기 쓰기','📝','night',10]
+  ['태권도','🥋','night',0],['피아노','🎹','night',20],['축구','⚽','night',0],
+  ['그림 그리기','🎨','night',0],['방 청소','🧹','night',10],['일기 쓰기','📝','night',10]
 ];
 
 /* ==========================================================
@@ -633,7 +693,8 @@ function save(){
 }
 
 function seed(){
-  const d = { childName:'', presets:[], plan:{}, timers:{} };
+  const d = { childName:'', presets:[], plan:{}, timers:{},
+              slots: DEFAULT_SLOTS.map(s=>({...s})) };
   SEED_PRESETS.forEach(([label,icon,slot,dur])=>{
     d.presets.push({id:uid(), label, icon, slot, durationMin:dur});
   });
@@ -848,32 +909,76 @@ function setEditMode(on){
 }
 $('#editToggle').addEventListener('click', ()=> setEditMode(!editMode));
 
+/* 날짜 이동 */
+function goDate(k){ viewDate = k; renderToday(); }
+$('#dPrev').addEventListener('click',  ()=> goDate(addDays(viewDate, -1)));
+$('#dNext').addEventListener('click',  ()=> goDate(addDays(viewDate,  1)));
+$('#dToday').addEventListener('click', ()=> goDate(todayKey()));
+
+/* 좌우로 밀어서도 넘길 수 있게 */
+(function(){
+  let x0 = null, y0 = null;
+  const el = $('#viewToday');
+  el.addEventListener('touchstart', e=>{
+    if(e.touches.length !== 1) return;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+  }, {passive:true});
+  el.addEventListener('touchend', e=>{
+    if(x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    const dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    if(Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2){
+      goDate(addDays(viewDate, dx < 0 ? 1 : -1));
+    }
+  }, {passive:true});
+})();
+
+/* 보고 있는 날짜 — 좌우 화살표로 옮깁니다 */
+let viewDate = todayKey();
+const isToday = () => viewDate === todayKey();
+
+function paintDateNav(){
+  const d  = parseKey(viewDate);
+  const tk = todayKey();
+  const diff = Math.round((parseKey(viewDate) - parseKey(tk)) / 86400000);
+  const rel = diff === 0 ? '오늘' : diff === -1 ? '어제' : diff === 1 ? '내일' : null;
+
+  $('#dLabel').textContent =
+    `${d.getMonth()+1}월 ${d.getDate()}일 (${DAYS[dowOf(viewDate)]})` + (rel ? ` · ${rel}` : '');
+  $('#dToday').style.display = isToday() ? 'none' : '';
+  $('#progLabel').textContent = isToday() ? '오늘 얼마나 했을까?' : '이 날은 얼마나 했을까?';
+  document.body.classList.toggle('notoday', !isToday());
+}
+
 function renderToday(){
-  const k = todayKey();
+  const k = viewDate;
   const list = itemsOf(k);
   const box = $('#todayList');
+
+  paintDateNav();
 
   const done = list.filter(i=>i.done).length;
   $('#progCount').textContent = done + ' / ' + list.length;
   $('#progFill').style.width = (list.length ? done/list.length*100 : 0) + '%';
 
   /* 추가 버튼은 편집 모드에서만 (평소 화면은 깔끔하게) */
-  const addBtn = editMode ? `<button class="addrow" id="tAdd">＋ 오늘 할 일 추가</button>` : '';
+  const addBtn = editMode ? `<button class="addrow" id="tAdd">＋ 할 일 추가</button>` : '';
 
   if(!list.length){
-    box.innerHTML = '<div class="empty"><b>🌿</b>오늘은 정해진 일이 없어요.<br>푹 쉬어도 좋아요!</div>' + addBtn;
+    box.innerHTML = `<div class="empty"><b>🌿</b>${isToday()?'오늘은':'이 날은'} 정해진 일이 없어요.<br>푹 쉬어도 좋아요!</div>` + addBtn;
     return;
   }
 
-  box.innerHTML = SLOTS.map(s=>{
+  box.innerHTML = slots().map(s=>{
     const its = list.filter(i=>i.slot===s.id);
     if(!its.length) return '';
     const d = its.filter(i=>i.done).length;
     return `
       <div class="slot">
-        <div class="slot-head">
+        <div class="slot-head" ${editMode?`data-slot="${s.id}"`:''}>
           <span class="slot-dot" style="background:${s.color}"></span>
-          <span class="slot-name">${s.emoji} ${s.name}</span>
+          <span class="slot-name">${s.emoji} ${esc(s.name)}${editMode?' <span class="slot-pen">✏️</span>':''}</span>
           <span class="slot-sub">${d}/${its.length}</span>
         </div>
         ${its.map(i=>`
@@ -881,7 +986,7 @@ function renderToday(){
             <span class="box"></span>
             <span class="emo">${i.icon}</span>
             <span class="label">${esc(i.label)}</span>
-            ${timerHTML(i)}
+            ${isToday() ? timerHTML(i) : ''}
             <span class="acts">
               <button data-edit="${i.id}">✏️</button>
               <button data-del="${i.id}">✕</button>
@@ -893,14 +998,50 @@ function renderToday(){
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+/* ---------- 시간대 이름 바꾸기 ---------- */
+let slotCtx = null, slotIcon = '🌅';
+
+function openSlot(id){
+  const s = slots().find(x=>x.id === id); if(!s) return;
+  slotCtx = id; slotIcon = s.emoji;
+  $('#slotName').value = s.name;
+  $('#slotIcons').innerHTML = SLOT_ICONS
+    .map(ic=>`<button type="button" data-sic="${ic}" class="${ic===slotIcon?'on':''}">${ic}</button>`).join('');
+  $('#slotModal').classList.add('open');
+  setTimeout(()=>$('#slotName').focus(), 80);
+}
+
+$('#slotIcons').addEventListener('click', e=>{
+  const b = e.target.closest('[data-sic]'); if(!b) return;
+  slotIcon = b.dataset.sic;
+  [...$('#slotIcons').children].forEach(c=>c.classList.toggle('on', c.dataset.sic === slotIcon));
+});
+
+function saveSlot(){
+  const name = $('#slotName').value.trim();
+  if(!name) return toast('이름을 적어주세요');
+  const s = slots().find(x=>x.id === slotCtx); if(!s) return;
+  s.name = name; s.emoji = slotIcon;
+  save();
+  $('#slotModal').classList.remove('open');
+  renderToday();
+  toast('바꿨어요');
+}
+$('#slotSave').addEventListener('click', saveSlot);
+$('#slotName').addEventListener('keydown', e=>{ if(e.key === 'Enter') saveSlot(); });
+
 /* 체크 / 해제 */
 $('#todayList').addEventListener('click', e=>{
-  const k = todayKey();
+  const k = viewDate;
 
   if(e.target.id === 'tAdd'){
     editWeek = weekStart(k);
     return openAdd();
   }
+
+  // 시간대 이름 바꾸기 (편집 모드일 때만)
+  const sh = editMode && e.target.closest('[data-slot]');
+  if(sh){ e.stopPropagation(); return openSlot(sh.dataset.slot); }
 
   // 편집 버튼이 먼저 (편집 모드일 때만)
   const eb = editMode && e.target.closest('[data-edit]');
@@ -940,111 +1081,6 @@ $('#todayList').addEventListener('click', e=>{
 
 /* ==========================================================
    화면 그리기 — 이번 주
-   ========================================================== */
-/* 이번 주 — 평소엔 보기만, ✏️ 를 눌러야 고치고 지울 수 있습니다 */
-let weekEdit = false;
-
-function renderWeek(){
-  if(!editWeek) editWeek = weekStart(todayKey());
-  const tk     = todayKey();
-  const isNext = editWeek !== weekStart(tk);
-
-  const head = `
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <button class="btn ${!isNext?'':'ghost'}" style="flex:1" data-week="this">이번 주</button>
-      <button class="btn ${isNext?'':'ghost'}"  style="flex:1" data-week="next">다음 주</button>
-    </div>
-    <div class="editbar" style="margin:2px 0 14px">
-      <button id="weekEditToggle" class="${weekEdit?'on':''}">${weekEdit ? '✓ 다 했어요' : '✏️ 고치기'}</button>
-    </div>`;
-
-  /* 보기 화면 */
-  if(!weekEdit){
-    $('#viewWeek').innerHTML = head + DAYS.map((name, i)=>{
-      const k   = addDays(editWeek, i);
-      const its = itemsOf(k);
-      return `
-        <div class="day-row ${k===tk?'today':''}">
-          <h4>${name}요일
-            <span style="color:var(--muted);font-weight:600;font-size:13px">${k.slice(5).replace('-','/')}</span>
-            ${k===tk?'<span class="badge">오늘</span>':''}</h4>
-          ${ its.length
-              ? its.map(it=>`<span class="chip ${it.done?'d':''}">${it.icon} ${esc(it.label)}</span>`).join('')
-              : '<div class="none">아직 없어요</div>' }
-        </div>`;
-    }).join('');
-    return;
-  }
-
-  /* 편집 화면 */
-  const rows = DAYS.map((name, i)=>{
-    const k   = addDays(editWeek, i);
-    const its = itemsOf(k);
-    return `
-      <div class="pcard ${k===tk?'today':''}">
-        <h4>${name}요일
-          <span style="color:var(--muted);font-weight:600">${k.slice(5).replace('-','/')}</span>
-          ${k===tk?'<span class="badge">오늘</span>':''}</h4>
-
-        ${ its.length
-            ? SLOTS.map(s=>{
-                const g = its.filter(x=>x.slot === s.id);
-                if(!g.length) return '';
-                return `<div class="pslot">${s.emoji} ${s.name}</div>` + g.map(it=>`
-                  <div class="ptask">
-                    <span>${it.icon}</span><span>${esc(it.label)}</span>
-                    ${it.durationMin ? `<span class="dur-tag">⏱ ${it.durationMin}분</span>` : ''}
-                    <button class="x" data-edit="${it.id}" data-date="${k}">✏️</button>
-                    <button class="x" data-del="${it.id}"  data-date="${k}">✕</button>
-                  </div>`).join('');
-              }).join('')
-            : '<div style="font-size:14px;color:var(--muted);padding:4px 2px">비어 있음</div>' }
-
-        <div class="preset-bar">
-          ${db.presets.map(p=>`<button data-preset="${p.id}" data-date="${k}">+ ${p.icon} ${esc(p.label)}${p.durationMin?` ⏱${p.durationMin}`:''}</button>`).join('')}
-        </div>
-      </div>`;
-  }).join('');
-
-  $('#viewWeek').innerHTML = head + `
-    <div class="row" style="margin:0 0 18px">
-      <button class="btn accent" id="wAdd">＋ 할 일 추가</button>
-      <button class="btn ghost"  id="wCopy">지난 주 복사</button>
-    </div>
-    ${rows}
-    <p class="hint">
-      · 점선 버튼은 <b>자주 넣는 것들</b>이에요. 눌러서 바로 넣을 수 있어요.<br>
-      · ✏️ 로 고치고 ✕ 로 지워요.<br>
-      · <b>지난 주 복사</b>를 누르면 한 주가 그대로 옮겨져요.
-    </p>`;
-}
-
-$('#viewWeek').addEventListener('click', e=>{
-  const t = e.target;
-
-  if(t.id === 'weekEditToggle'){ weekEdit = !weekEdit; return renderWeek(); }
-
-  if(t.dataset.week){
-    editWeek = t.dataset.week === 'next' ? addDays(weekStart(todayKey()), 7) : weekStart(todayKey());
-    return renderWeek();
-  }
-  if(t.dataset.edit) return openAdd({date:t.dataset.date, id:t.dataset.edit});
-  if(t.dataset.del){
-    const k = t.dataset.date;
-    db.plan[k] = itemsOf(k).filter(i=>i.id !== t.dataset.del);
-    save(); renderWeek(); return;
-  }
-  if(t.dataset.preset){
-    const p = db.presets.find(x=>x.id === t.dataset.preset); if(!p) return;
-    addItem(t.dataset.date, p.label, p.icon, p.slot, p.durationMin);
-    save(); renderWeek(); return;
-  }
-  if(t.id === 'wAdd')  return openAdd();
-  if(t.id === 'wCopy') return copyLastWeek();
-});
-
-/* ==========================================================
-   화면 그리기 — 부모 모드
    ========================================================== */
 let editWeek = null;   // 편집 중인 주의 월요일
 
@@ -1086,6 +1122,17 @@ function renderParent(){
     </div>
 
     <div class="pcard">
+      <h4>📋 지난 주 계획 가져오기</h4>
+      <p class="hint" style="margin:0 0 12px">
+        지난 주에 넣어둔 할 일을 그대로 옮겨 옵니다. 매주 다시 만들지 않아도 돼요.
+      </p>
+      <div class="row" style="margin:0">
+        <button class="btn ghost" data-copy="this">이번 주로</button>
+        <button class="btn ghost" data-copy="next">다음 주로</button>
+      </div>
+    </div>
+
+    <div class="pcard">
       <h4>🗑 한 주 통째로 비우기</h4>
       <p class="hint" style="margin:0 0 12px">
         되돌릴 수 없어요. 할 일 하나씩 지우는 건 <b>이번 주</b> 탭에서 하세요.
@@ -1106,6 +1153,10 @@ $('#viewParent').addEventListener('click', e=>{
   if(t.dataset.clear){
     editWeek = t.dataset.clear === 'next' ? addDays(weekStart(todayKey()), 7) : weekStart(todayKey());
     return clearWeek();
+  }
+  if(t.dataset.copy){
+    editWeek = t.dataset.copy === 'next' ? addDays(weekStart(todayKey()), 7) : weekStart(todayKey());
+    return copyLastWeek();
   }
   if(t.id === 'pExit') return switchView('today');
   if(t.id === 'pPin')  return openPin('change');
@@ -1160,7 +1211,7 @@ function copyLastWeek(){
     db.plan[dst] = src.map(x=>({...x, id:uid(), done:false, doneAt:null, updatedAt:Date.now()}));
     n += src.length;
   }
-  save(); renderParent();
+  save(); refreshCurrent();
   toast(n ? `지난 주에서 ${n}개를 가져왔어요` : '지난 주에 저장된 계획이 없어요');
 }
 
@@ -1180,7 +1231,7 @@ function openAdd(ctx){
 
   pickIcon = it ? it.icon : ICONS[0];
   pickDur  = it ? (it.durationMin || 0) : 0;
-  pickDays = it ? new Set() : new Set([dowOf(todayKey())]);
+  pickDays = it ? new Set() : new Set([dowOf(viewDate)]);   // 보고 있는 날 기준
 
   $('#addTitle').textContent = it ? '할 일 고치기' : '할 일 추가';
   $('#addSave').textContent  = it ? '고치기' : '추가하기';
@@ -1261,7 +1312,6 @@ function doAdd(){
 /* 지금 보고 있는 화면만 다시 그립니다 */
 function refreshCurrent(){
   if($('#viewToday').style.display !== 'none')  renderToday();
-  if($('#viewWeek').style.display  !== 'none')  renderWeek();
   if($('#viewParent').style.display !== 'none') renderParent();
 }
 
@@ -1521,21 +1571,19 @@ $('#viewSched').addEventListener('click', e=>{
    ========================================================== */
 function switchView(v){
   $('#viewToday').style.display  = v==='today'  ? '' : 'none';
-  $('#viewWeek').style.display   = v==='week'   ? '' : 'none';
   $('#viewSched').style.display  = v==='sched'  ? '' : 'none';
   $('#viewParent').style.display = v==='parent' ? '' : 'none';
   document.querySelector('.tabbar').style.display = v==='parent' ? 'none' : 'flex';
   $('#gearBtn').style.display = v==='parent' ? 'none' : '';
 
   if(v !== 'today') setEditMode(false);
-  if(v !== 'week')  weekEdit = false;      // 나갔다 오면 다시 보기 모드로
   document.body.classList.toggle('wide', v === 'sched');
+  document.body.classList.toggle('notoday', v === 'today' && !isToday());
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.view === v));
 
-  if(v==='today'){ $('#helloText').textContent = '오늘 할 일'; renderToday(); }
-  if(v==='week'){  $('#helloText').textContent = '이번 주';   renderWeek(); }
-  if(v==='sched'){ $('#helloText').textContent = '내 일정';   renderSched(); loadSchedule(); }
-  if(v==='parent'){$('#helloText').textContent = '주간 계획';  renderParent(); }
+  if(v==='today'){ $('#helloText').textContent = '할 일';    renderToday(); }
+  if(v==='sched'){ $('#helloText').textContent = '내 일정';  renderSched(); loadSchedule(); }
+  if(v==='parent'){$('#helloText').textContent = '설정';     renderParent(); }
 }
 document.querySelectorAll('.tab').forEach(t=>{
   t.addEventListener('click', ()=> switchView(t.dataset.view));
@@ -1590,7 +1638,9 @@ async function forceUpdate(){
 
 (function init(){
   if(!storageOK) $('#storageWarn').style.display = '';
+  slots(); fixSlots();            // 시간대 준비 + 예전 데이터 정리
   const k = todayKey();
+  viewDate = k;
   tickClock();
   setInterval(tickClock, 1000);
   switchView('today');
