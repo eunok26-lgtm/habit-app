@@ -44,8 +44,10 @@
   .top{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:6px}
   .date{font-size:15px; color:var(--muted); font-weight:600}
   .hello{font-size:30px; font-weight:800; letter-spacing:-.5px; margin:2px 0 0}
-  .gear{font-size:22px; opacity:.35; padding:10px; border-radius:12px}
+  .topbtns{display:flex; align-items:center; gap:2px; flex:0 0 auto}
+  .gear{font-size:20px; opacity:.35; padding:9px; border-radius:12px; line-height:1}
   .gear:active{opacity:.8; background:var(--line)}
+  .gear.on{opacity:1; background:var(--ink); border-radius:12px}
 
   /* ---------- 진행 바 ---------- */
   .prog-wrap{margin:18px 0 26px}
@@ -601,7 +603,10 @@
       <div class="date clock" id="dateText"></div>
       <h1 class="hello" id="helloText">오늘 할 일</h1>
     </div>
-    <button class="gear" id="gearBtn" aria-label="부모 모드">⚙️</button>
+    <div class="topbtns">
+      <button class="gear" id="wgEditTop" aria-label="위젯 편집" title="위젯 편집" style="display:none">✏️</button>
+      <button class="gear" id="gearBtn" aria-label="부모 모드" title="부모 모드">⚙️</button>
+    </div>
   </div>
 
   <!-- 오늘 -->
@@ -772,7 +777,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23h';
+const APP_VERSION = '2026-08-23i';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -1603,7 +1608,7 @@ function pinSubmit(){
     if(pinBuf === db.pin){
       const toWidget = pinMode === 'widget';
       closePin();
-      if(toWidget){ wedit = true; document.body.classList.add('wedit'); renderSched(); }
+      if(toWidget) setWEdit(true);
       else switchView('parent');
     }
     else pinShake('비밀번호가 달라요. 다시 눌러 주세요.');
@@ -1980,6 +1985,19 @@ const SIZE_ORDER = ['sm','lg','full'];
 const SIZE_ICON  = {sm:'▫️', lg:'▬', full:'⬛'};
 const SIZE_NAME  = {sm:'작게', lg:'크게', full:'전체'};
 function wsize(w){ return w.size || (WT[w.type] && WT[w.type].wide ? 'full' : 'sm'); }
+
+/* 위쪽 ✏️ 로 편집 모드를 켜고 끕니다 */
+function setWEdit(on){
+  wedit = on;
+  document.body.classList.toggle('wedit', on);
+  $('#wgEditTop').classList.toggle('on', on);
+  renderSched();
+}
+$('#wgEditTop').addEventListener('click', ()=>{
+  if(wedit) return setWEdit(false);
+  if(db.pin) return openPin('widget');     // 부모만 편집
+  setWEdit(true);
+});
 function sizeClass(w){ const s = wsize(w); return s==='full' ? 'w-full' : s==='lg' ? 'w-lg' : ''; }
 
 function renderSched(){
@@ -1987,15 +2005,10 @@ function renderSched(){
   const list = widgets();
   const needCal = list.some(w => WT[w.type] && WT[w.type].needsCal);
 
-  const bar = `
-    <div class="wbar">
-      ${ wedit
-          ? `<button class="btn accent" id="wgAdd">＋ 위젯 추가</button>
-             <button class="btn" id="wgDone">✓ 다 했어요</button>`
-          : `<button class="btn ghost" id="wgEdit" style="flex:0 0 auto">✏️ 위젯 편집</button>
-             <span style="flex:1"></span>
-             ${ g.cache ? `<button class="btn ghost" id="sRefresh" style="flex:0 0 auto">🔄 새로고침</button>` : '' }` }
-    </div>`;
+  /* 편집 버튼은 위쪽 헤더에 있습니다 */
+  const bar = wedit
+    ? `<div class="wbar"><button class="btn accent" id="wgAdd">＋ 위젯 추가</button></div>`
+    : '';
 
   if(needCal && !g.url){
     el.innerHTML = bar + `
@@ -2119,13 +2132,8 @@ async function loadWeather(w){
 $('#viewSched').addEventListener('click', async e=>{
   const t = e.target;
 
-  if(t.id === 'sRefresh' || t.id === 'sRetry'){ wxCache = {}; return loadSchedule(true); }
+  if(t.id === 'sRetry'){ wxCache = {}; return loadSchedule(true); }
   if(t.id === 'sSetup')  return $('#gearBtn').click();
-  if(t.id === 'wgDone'){ wedit = false; document.body.classList.remove('wedit'); return renderSched(); }
-  if(t.id === 'wgEdit'){
-    if(db.pin) return openPin('widget');          // 부모만 편집
-    wedit = true; document.body.classList.add('wedit'); return renderSched();
-  }
   if(t.id === 'wgAdd') return openWPick();
 
   const cup = t.closest('[data-cup]');
@@ -2343,7 +2351,8 @@ function switchView(v){
   $('#gearBtn').style.display = v==='parent' ? 'none' : '';
 
   if(v !== 'today') setEditMode(false);
-  if(v !== 'sched'){ wedit = false; document.body.classList.remove('wedit'); }
+  if(v !== 'sched'){ wedit = false; document.body.classList.remove('wedit'); $('#wgEditTop').classList.remove('on'); }
+  $('#wgEditTop').style.display = v === 'sched' ? '' : 'none';
   document.body.classList.toggle('wide', v === 'sched');
   document.body.classList.toggle('notoday', v === 'today' && !isToday());
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.view === v));
