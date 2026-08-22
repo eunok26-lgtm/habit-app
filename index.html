@@ -314,8 +314,26 @@
   .setup p{margin:0 0 18px; font-size:15px; color:var(--muted); line-height:1.6}
 
   /* ---------- 위젯 ---------- */
-  .wgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; align-items:start}
-  .wgrid .w-wide{grid-column:1 / -1}
+  /* 칸 수를 확실히 정해 둡니다 (span 이 어긋나지 않게) */
+  .wgrid{display:grid; grid-template-columns:1fr; gap:14px; align-items:start}
+  @media (min-width:700px){  .wgrid{grid-template-columns:repeat(2,1fr)} }
+  @media (min-width:1060px){ .wgrid{grid-template-columns:repeat(3,1fr)} }
+  .w-lg{grid-column:span 2}
+  .w-full{grid-column:1 / -1}
+  @media (max-width:699px){ .w-lg{grid-column:auto} }
+
+  .w-drag{
+    flex:0 0 auto; display:none; width:34px; height:34px; margin-left:-6px;
+    align-items:center; justify-content:center; cursor:grab;
+    font-size:17px; color:#c9b9a4; border-radius:10px; touch-action:none;
+  }
+  body.wedit .w-drag{display:flex}
+  .w.dragging{
+    z-index:50; opacity:.95; cursor:grabbing;
+    box-shadow:0 18px 40px rgba(0,0,0,.22); border-color:var(--accent) !important;
+  }
+  body.dragging-on{user-select:none; -webkit-user-select:none}
+  body.dragging-on .w:not(.dragging){transition:transform .18s ease}
   .w{
     position:relative; background:var(--card); border:2px solid var(--line);
     border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px;
@@ -642,11 +660,7 @@
     <div class="icons" id="addIcons"></div>
 
     <label class="fl">언제 하나요?</label>
-    <select id="addSlot">
-      <option value="morning">🌅 아침</option>
-      <option value="after">🎒 학교 다녀와서</option>
-      <option value="night">🌙 잘 준비</option>
-    </select>
+    <select id="addSlot"></select>
 
     <label class="fl">시간을 정해줄까요? <span style="font-weight:600;color:var(--muted)">— 타이머가 같이 나와요</span></label>
     <div class="pick" id="addDur"></div>
@@ -711,6 +725,9 @@
       <button class="btn ghost" data-close>취소</button>
       <button class="btn accent" id="slotSave">저장</button>
     </div>
+    <button class="btn ghost wide" id="slotDel" style="margin-top:10px; color:#c0392b; display:none">
+      🗑 이 시간대 지우기
+    </button>
   </div>
 </div>
 
@@ -753,7 +770,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23d';
+const APP_VERSION = '2026-08-23e';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -1125,7 +1142,10 @@ function renderToday(){
   $('#progFill').style.width = (list.length ? done/list.length*100 : 0) + '%';
 
   /* 추가 버튼은 편집 모드에서만 (평소 화면은 깔끔하게) */
-  const addBtn = editMode ? `<button class="addrow" id="tAdd">＋ 할 일 추가</button>` : '';
+  const addBtn = editMode
+    ? `<button class="addrow" id="tAdd">＋ 할 일 추가</button>
+       <button class="addrow" id="tAddSlot" style="margin-top:8px">＋ 시간대 추가</button>`
+    : '';
 
   if(!list.length){
     box.innerHTML = `<div class="empty"><b>🌿</b>${isToday()?'오늘은':'이 날은'} 정해진 일이 없어요.<br>푹 쉬어도 좋아요!</div>` + addBtn;
@@ -1163,14 +1183,50 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;'
 /* ---------- 시간대 이름 바꾸기 ---------- */
 let slotCtx = null, slotIcon = '🌅';
 
+/* id 를 주면 고치기, 안 주면 새로 만들기 */
 function openSlot(id){
-  const s = slots().find(x=>x.id === id); if(!s) return;
-  slotCtx = id; slotIcon = s.emoji;
-  $('#slotName').value = s.name;
+  const s = id ? slots().find(x=>x.id === id) : null;
+  if(id && !s) return;
+  slotCtx = id; slotIcon = s ? s.emoji : SLOT_ICONS[0];
+
+  $('#slotModal h3').textContent = s ? '시간대 이름 바꾸기' : '시간대 추가';
+  $('#slotName').value = s ? s.name : '';
+  $('#slotName').placeholder = '예: 학교 다녀와서, 저녁 먹고, 자기 전';
   $('#slotIcons').innerHTML = SLOT_ICONS
     .map(ic=>`<button type="button" data-sic="${ic}" class="${ic===slotIcon?'on':''}">${ic}</button>`).join('');
+
+  /* 시간대가 둘 이상일 때만 지울 수 있습니다 */
+  $('#slotDel').style.display = (s && slots().length > 1) ? '' : 'none';
+
   $('#slotModal').classList.add('open');
   setTimeout(()=>$('#slotName').focus(), 80);
+}
+
+function delSlot(){
+  const list = slots();
+  if(list.length <= 1 || !slotCtx) return;
+
+  const s      = list.find(x=>x.id === slotCtx);
+  const rest   = list.filter(x=>x.id !== slotCtx);
+  const moveTo = rest[rest.length-1];
+
+  /* 먼저 몇 개가 딸려 있는지 세고 확인부터 받습니다 */
+  let n = 0;
+  Object.values(db.plan || {}).forEach(arr=>
+    (arr||[]).forEach(it=>{ if(it.slot === slotCtx) n++; }));
+
+  if(!confirm(`"${s.name}" 시간대를 지울까요?`
+              + (n ? `\n안에 있던 할 일 ${n}개는 "${moveTo.name}"으로 옮겨집니다.` : ''))) return;
+
+  Object.values(db.plan || {}).forEach(arr=>
+    (arr||[]).forEach(it=>{ if(it.slot === slotCtx) it.slot = moveTo.id; }));
+  (db.presets||[]).forEach(p=>{ if(p.slot === slotCtx) p.slot = moveTo.id; });
+
+  db.slots = rest;
+  save();
+  $('#slotModal').classList.remove('open');
+  renderToday();
+  toast(n ? `지웠어요 · 할 일 ${n}개를 옮겼습니다` : '지웠어요');
 }
 
 $('#slotIcons').addEventListener('click', e=>{
@@ -1179,17 +1235,26 @@ $('#slotIcons').addEventListener('click', e=>{
   [...$('#slotIcons').children].forEach(c=>c.classList.toggle('on', c.dataset.sic === slotIcon));
 });
 
+const SLOT_COLORS = ['var(--morning)','var(--after)','var(--night)','#f6a6c1','#9fd8a0','#c9b8f0'];
+
 function saveSlot(){
   const name = $('#slotName').value.trim();
   if(!name) return toast('이름을 적어주세요');
-  const s = slots().find(x=>x.id === slotCtx); if(!s) return;
-  s.name = name; s.emoji = slotIcon;
+
+  if(slotCtx){
+    const s = slots().find(x=>x.id === slotCtx); if(!s) return;
+    s.name = name; s.emoji = slotIcon;
+  }else{
+    const list = slots();
+    list.push({id:uid(), name, emoji:slotIcon, color:SLOT_COLORS[list.length % SLOT_COLORS.length]});
+  }
   save();
   $('#slotModal').classList.remove('open');
   renderToday();
-  toast('바꿨어요');
+  toast(slotCtx ? '바꿨어요' : `"${name}" 시간대를 넣었어요`);
 }
 $('#slotSave').addEventListener('click', saveSlot);
+$('#slotDel').addEventListener('click', delSlot);
 $('#slotName').addEventListener('keydown', e=>{ if(e.key === 'Enter') saveSlot(); });
 
 /* 체크 / 해제 */
@@ -1200,6 +1265,7 @@ $('#todayList').addEventListener('click', e=>{
     editWeek = weekStart(k);
     return openAdd();
   }
+  if(e.target.id === 'tAddSlot') return openSlot(null);   // 새 시간대
 
   // 시간대 이름 바꾸기 (편집 모드일 때만)
   const sh = editMode && e.target.closest('[data-slot]');
@@ -1403,7 +1469,10 @@ function openAdd(ctx){
     : '여러 요일을 함께 고르면 한 번에 들어갑니다.';
 
   $('#addLabel').value = it ? it.label : '';
-  $('#addSlot').value  = it ? it.slot : 'after';
+  /* 시간대 목록은 지금 쓰는 것에서 만듭니다 */
+  $('#addSlot').innerHTML = slots().map(s=>
+    `<option value="${s.id}">${s.emoji} ${esc(s.name)}</option>`).join('');
+  $('#addSlot').value  = it ? it.slot : slots()[slots().length-1].id;
   $('#addIcons').innerHTML = ICONS.map(ic=>`<button type="button" data-ic="${ic}" class="${ic===pickIcon?'on':''}">${ic}</button>`).join('');
   $('#addDays').innerHTML  = DAYS.map((d,i)=>`<button type="button" data-dow="${i}" class="${pickDays.has(i)?'on':''}">${d}</button>`).join('');
   $('#addDur').innerHTML   = DURS.map(d=>`<button type="button" data-dur="${d}" class="${d===pickDur?'on':''}">${d ? d+'분' : '없음'}</button>`).join('');
@@ -1904,6 +1973,13 @@ function widgets(){
 let wxCache = {};
 let wedit = false;
 
+/* 위젯 크기 — 작게(1칸) · 크게(2칸) · 전체(꽉) */
+const SIZE_ORDER = ['sm','lg','full'];
+const SIZE_ICON  = {sm:'▫️', lg:'▬', full:'⬛'};
+const SIZE_NAME  = {sm:'작게', lg:'크게', full:'전체'};
+function wsize(w){ return w.size || (WT[w.type] && WT[w.type].wide ? 'full' : 'sm'); }
+function sizeClass(w){ const s = wsize(w); return s==='full' ? 'w-full' : s==='lg' ? 'w-lg' : ''; }
+
 function renderSched(){
   const el = $('#viewSched'), g = gcal();
   const list = widgets();
@@ -1943,18 +2019,18 @@ function renderSched(){
     return;
   }
 
-  el.innerHTML = bar + `<div class="wgrid">` + list.map((w, i)=>{
+  el.innerHTML = bar + `<div class="wgrid">` + list.map(w=>{
     const def = WT[w.type];
     if(!def) return '';
     let body = '';
     try{ body = def.render(w) || ''; }catch(err){ body = `<div class="dnone">표시할 수 없어요</div>`; }
     return `
-      <div class="w ${def.wide?'w-wide':''}" data-wid="${w.id}">
+      <div class="w ${sizeClass(w)}" data-wid="${w.id}">
         <div class="w-head">
+          <span class="w-drag" data-drag="${w.id}">⠿</span>
           <span class="w-title">${def.emoji} ${esc(w.title || def.name)}</span>
           <span class="w-tools">
-            <button data-wup="${w.id}" ${i===0?'disabled style="opacity:.3"':''}>↑</button>
-            <button data-wdn="${w.id}" ${i===list.length-1?'disabled style="opacity:.3"':''}>↓</button>
+            <button data-wsize="${w.id}" title="크기">${SIZE_ICON[wsize(w)]}</button>
             ${ def.fields ? `<button data-wcfg="${w.id}">⚙️</button>` : '' }
             <button class="del" data-wdel="${w.id}">✕</button>
           </span>
@@ -2058,14 +2134,13 @@ $('#viewSched').addEventListener('click', async e=>{
   }
 
   const list = widgets();
-  const move = (id, dir)=>{
-    const i = list.findIndex(w=>w.id===id), j = i+dir;
-    if(i<0 || j<0 || j>=list.length) return;
-    [list[i], list[j]] = [list[j], list[i]];
+
+  if(t.dataset.wsize){
+    const w = list.find(x=>x.id === t.dataset.wsize); if(!w) return;
+    w.size = SIZE_ORDER[(SIZE_ORDER.indexOf(wsize(w)) + 1) % SIZE_ORDER.length];
     save(); renderSched();
-  };
-  if(t.dataset.wup) return move(t.dataset.wup, -1);
-  if(t.dataset.wdn) return move(t.dataset.wdn,  1);
+    return toast(SIZE_NAME[w.size]);
+  }
   if(t.dataset.wcfg) return openWCfg(t.dataset.wcfg);
   if(t.dataset.wdel){
     const w = list.find(x=>x.id===t.dataset.wdel);
@@ -2077,6 +2152,67 @@ $('#viewSched').addEventListener('click', async e=>{
   }
 });
 
+
+/* ---------- 위젯 끌어서 옮기기 (마우스·터치 공통) ---------- */
+(function widgetDrag(){
+  let el = null, handle = null, sx = 0, sy = 0;
+
+  const cards = () => [...document.querySelectorAll('#viewSched .w')];
+
+  document.addEventListener('pointerdown', e=>{
+    if(!wedit) return;
+    const h = e.target.closest('[data-drag]'); if(!h) return;
+    el = h.closest('.w'); if(!el) return;
+
+    e.preventDefault();
+    handle = h;
+    sx = e.clientX; sy = e.clientY;
+    el.classList.add('dragging');
+    document.body.classList.add('dragging-on');
+    try{ h.setPointerCapture(e.pointerId); }catch(err){}
+  });
+
+  document.addEventListener('pointermove', e=>{
+    if(!el) return;
+    el.style.transform = `translate(${e.clientX - sx}px, ${e.clientY - sy}px)`;
+
+    /* 손가락 아래에 있는 다른 위젯 찾기 */
+    el.style.pointerEvents = 'none';
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    el.style.pointerEvents = '';
+    const tgt = under && under.closest('#viewSched .w');
+    if(!tgt || tgt === el) return;
+
+    const tr = tgt.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    const sameRow = Math.abs(tr.top - er.top) < 40;
+    const before  = sameRow ? e.clientX < tr.left + tr.width/2
+                            : e.clientY < tr.top  + tr.height/2;
+
+    tgt.parentNode.insertBefore(el, before ? tgt : tgt.nextSibling);
+
+    /* 자리를 옮겼으니 기준점을 다시 잡습니다 */
+    sx = e.clientX; sy = e.clientY;
+    el.style.transform = 'translate(0,0)';
+  });
+
+  function finish(e){
+    if(!el) return;
+    try{ handle.releasePointerCapture(e.pointerId); }catch(err){}
+    el.classList.remove('dragging');
+    el.style.transform = '';
+    document.body.classList.remove('dragging-on');
+
+    const order = cards().map(c => c.dataset.wid);
+    const cur   = widgets();
+    db.widgets  = order.map(id => cur.find(w => w.id === id)).filter(Boolean);
+    save();
+    el = null; handle = null;
+    renderSched();
+  }
+  document.addEventListener('pointerup', finish);
+  document.addEventListener('pointercancel', finish);
+})();
 
 /* ---------- 위젯 고르기 ---------- */
 function openWPick(){
