@@ -313,6 +313,103 @@
   .setup h3{margin:12px 0 8px; font-size:19px; font-weight:800}
   .setup p{margin:0 0 18px; font-size:15px; color:var(--muted); line-height:1.6}
 
+  /* ---------- 위젯 ---------- */
+  .wgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; align-items:start}
+  .wgrid .w-wide{grid-column:1 / -1}
+  .w{
+    position:relative; background:var(--card); border:2px solid var(--line);
+    border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px;
+  }
+  .w-head{display:flex; align-items:center; gap:8px; margin-bottom:12px}
+  .w-title{font-size:14px; font-weight:800; color:var(--muted); letter-spacing:.2px}
+  .w-tools{display:none; margin-left:auto; gap:5px}
+  body.wedit .w-tools{display:flex}
+  body.wedit .w{border-style:dashed; border-color:#d9c9b5}
+  .w-tools button{
+    width:36px; height:36px; border-radius:11px; font-size:14px;
+    border:2px solid var(--line); background:#fff; color:var(--muted);
+  }
+  .w-tools button:active{background:var(--line)}
+  .w-tools button.del:active{background:#ffecec; color:#c0392b}
+
+  .wbar{display:flex; gap:10px; margin-bottom:16px}
+  .wbar .btn{flex:1}
+
+  /* 시계 */
+  .clockwrap{display:flex; align-items:center; gap:20px; justify-content:center}
+  .clockface{width:132px; height:132px; flex:0 0 auto}
+  .clockface circle.f{fill:#fffdf8; stroke:var(--line); stroke-width:4}
+  .clockface line{stroke-linecap:round}
+  .clockface .hh{stroke:var(--ink); stroke-width:7}
+  .clockface .mh{stroke:var(--ink); stroke-width:5}
+  .clockface .sh{stroke:var(--accent); stroke-width:2.5}
+  .clockface .tick{stroke:#d8cab6; stroke-width:3}
+  .clockface .num{font-size:15px; font-weight:800; fill:var(--muted)}
+  .clockdig{text-align:center}
+  .clockdig .t{font-size:34px; font-weight:800; letter-spacing:-1px; font-variant-numeric:tabular-nums}
+  .clockdig .d{font-size:14px; font-weight:700; color:var(--muted); margin-top:3px}
+
+  /* 준비물 / 시간표 */
+  .chips2{display:flex; flex-wrap:wrap; gap:8px}
+  .chips2 span, .chips2 button{
+    font-size:16px; font-weight:700; background:#f7f1e8; color:var(--ink);
+    border:none; border-radius:12px; padding:10px 14px;
+  }
+  .chips2 button.on{background:var(--done-soft); color:#6f8a7d; text-decoration:line-through}
+  .period{display:flex; align-items:center; gap:11px; padding:9px 0; border-top:1px dashed var(--line)}
+  .period:first-of-type{border-top:none}
+  .period .n{
+    flex:0 0 auto; width:28px; height:28px; border-radius:9px; background:#f2e9dc;
+    color:var(--muted); font-size:13px; font-weight:800; display:flex;
+    align-items:center; justify-content:center;
+  }
+  .period .s{font-size:17px; font-weight:700}
+
+  /* D-Day */
+  .dday{text-align:center; padding:4px 0}
+  .dday .emo{font-size:38px}
+  .dday .num{font-size:40px; font-weight:800; letter-spacing:-2px; margin:4px 0 2px}
+  .dday .nm{font-size:16px; font-weight:700; color:var(--muted)}
+  .dday.today .num{color:var(--accent)}
+
+  /* 날씨 */
+  .wx{display:flex; align-items:center; gap:18px}
+  .wx .ico{font-size:52px; flex:0 0 auto}
+  .wx .t{font-size:34px; font-weight:800; letter-spacing:-1px}
+  .wx .s{font-size:15px; font-weight:700; color:var(--muted); margin-top:2px; line-height:1.5}
+  .wx .tip{
+    margin-top:10px; font-size:15px; font-weight:800; color:#c47f1a;
+    background:#fff4dd; border-radius:12px; padding:9px 13px;
+  }
+
+  /* 메모 */
+  .memo{font-size:18px; font-weight:700; line-height:1.65; white-space:pre-wrap}
+
+  /* 물 마시기 */
+  .cups{display:flex; flex-wrap:wrap; gap:9px; justify-content:center}
+  .cups button{
+    width:46px; height:46px; border-radius:14px; font-size:23px;
+    border:2px solid var(--line); background:#fff; filter:grayscale(1); opacity:.45;
+  }
+  .cups button.on{filter:none; opacity:1; border-color:#b6ddf0; background:#eaf4fb}
+
+  /* 위젯 고르기 */
+  .wpick{display:grid; grid-template-columns:1fr; gap:9px}
+  .wpick button{
+    display:flex; align-items:center; gap:13px; text-align:left; width:100%;
+    border:2px solid var(--line); background:#fff; border-radius:16px; padding:14px 16px;
+  }
+  .wpick button:active{border-color:var(--accent); background:#fff6ec}
+  .wpick .e{font-size:26px; flex:0 0 auto}
+  .wpick .n{font-size:16px; font-weight:800}
+  .wpick .d{font-size:13px; font-weight:600; color:var(--muted); margin-top:2px}
+  textarea{
+    width:100%; padding:13px 15px; font-size:16px; font-family:inherit; line-height:1.6;
+    border:2px solid var(--line); border-radius:14px; background:#fff; color:var(--ink);
+    min-height:130px; resize:vertical;
+  }
+  textarea:focus{outline:none; border-color:var(--accent)}
+
   /* ---------- 모달 ---------- */
   .modal{
     position:fixed; inset:0; z-index:100; display:none;
@@ -559,6 +656,31 @@
   </div>
 </div>
 
+<!-- 위젯 고르기 -->
+<div class="modal" id="wpickModal">
+  <div class="sheet tall" style="max-width:440px">
+    <h3>위젯 추가</h3>
+    <p class="sub">일정 화면에 넣을 조각을 골라 주세요.</p>
+    <div class="wpick" id="wpickList"></div>
+    <div class="row"><button class="btn ghost wide" data-close>닫기</button></div>
+  </div>
+</div>
+
+<!-- 위젯 설정 -->
+<div class="modal" id="wcfgModal">
+  <div class="sheet tall" style="max-width:440px">
+    <h3 id="wcfgTitle">위젯 설정</h3>
+    <p class="sub" id="wcfgSub"></p>
+    <div id="wcfgFields"></div>
+    <div id="wcfgWarn" style="display:none; margin-top:14px; padding:11px 14px; border-radius:12px;
+         background:#ffecec; color:#c0392b; font-size:14px; font-weight:700"></div>
+    <div class="row">
+      <button class="btn ghost" data-close>취소</button>
+      <button class="btn accent" id="wcfgSave">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 시간대 이름 바꾸기 -->
 <div class="modal" id="slotModal">
   <div class="sheet" style="max-width:400px">
@@ -617,7 +739,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23b';
+const APP_VERSION = '2026-08-23c';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -1362,10 +1484,12 @@ $('#gearBtn').addEventListener('click', ()=> openPin(db.pin ? 'check' : 'set'));
 
 function openPin(mode){
   pinMode = mode; pinBuf = ''; pinFirst = '';
-  $('#pinTitle').textContent = mode === 'check' ? '부모 모드'
-                             : mode === 'set'   ? '비밀번호 만들기' : '비밀번호 바꾸기';
-  $('#pinSub').textContent   = mode === 'check' ? '비밀번호 네 자리를 눌러 주세요.'
-                                                : '새로 쓸 네 자리를 정해 주세요.';
+  $('#pinTitle').textContent = mode === 'check'  ? '부모 모드'
+                             : mode === 'widget' ? '위젯 편집'
+                             : mode === 'set'    ? '비밀번호 만들기' : '비밀번호 바꾸기';
+  $('#pinSub').textContent   = (mode === 'check' || mode === 'widget')
+                             ? '비밀번호 네 자리를 눌러 주세요.'
+                             : '새로 쓸 네 자리를 정해 주세요.';
   paintDots();
   $('#lockModal').classList.add('open');
 }
@@ -1390,8 +1514,13 @@ function pinKey(k){
 }
 
 function pinSubmit(){
-  if(pinMode === 'check'){
-    if(pinBuf === db.pin){ closePin(); switchView('parent'); }
+  if(pinMode === 'check' || pinMode === 'widget'){
+    if(pinBuf === db.pin){
+      const toWidget = pinMode === 'widget';
+      closePin();
+      if(toWidget){ wedit = true; document.body.classList.add('wedit'); renderSched(); }
+      else switchView('parent');
+    }
     else pinShake('비밀번호가 달라요. 다시 눌러 주세요.');
     return;
   }
@@ -1493,11 +1622,246 @@ async function loadSchedule(force){
   }
 }
 
+/* ==========================================================
+   위젯 — 일정 탭을 구성하는 조각들
+   부모 모드에서 추가 · 순서 변경 · 설정 · 삭제할 수 있습니다.
+   ========================================================== */
+function toMin(hm){ const [h,m] = hm.split(':').map(Number); return h*60 + (m||0); }
+function toAmPm(hm){
+  const [h,m] = hm.split(':').map(Number);
+  const d = new Date(); d.setHours(h, m||0, 0, 0);
+  return ampmTime(d);
+}
+function schedDay(){ const c = gcal().cache; return (c && c.days[todayKey()]) || null; }
+
+/* ---------- 위젯 종류 ---------- */
+const WT = {
+  clock: {
+    name:'시계', emoji:'🕐', desc:'지금 몇 시인지 큰 시계로 보여줘요',
+    render(){
+      return `<div class="clockwrap">
+        <svg class="clockface" viewBox="0 0 100 100">
+          <circle class="f" cx="50" cy="50" r="46"></circle>
+          ${[...Array(12)].map((_,i)=>{
+            const a=(i*30-90)*Math.PI/180;
+            return `<line class="tick" x1="${50+40*Math.cos(a)}" y1="${50+40*Math.sin(a)}"
+                          x2="${50+44*Math.cos(a)}" y2="${50+44*Math.sin(a)}"></line>`;
+          }).join('')}
+          ${[12,3,6,9].map((n,i)=>{
+            const a=(i*90-90)*Math.PI/180;
+            return `<text class="num" x="${50+32*Math.cos(a)}" y="${50+32*Math.sin(a)+5}"
+                          text-anchor="middle">${n}</text>`;
+          }).join('')}
+          <line class="hh" data-hand="h" x1="50" y1="50" x2="50" y2="27"></line>
+          <line class="mh" data-hand="m" x1="50" y1="50" x2="50" y2="18"></line>
+          <line class="sh" data-hand="s" x1="50" y1="50" x2="50" y2="14"></line>
+          <circle cx="50" cy="50" r="3" fill="var(--ink)"></circle>
+        </svg>
+        <div class="clockdig">
+          <div class="t" data-clock="t"></div>
+          <div class="d" data-clock="d"></div>
+        </div>
+      </div>`;
+    }
+  },
+
+  dismissal: {
+    name:'하교 시각', emoji:'🔔', desc:'오늘 학교가 몇 시에 끝나는지', needsCal:true,
+    render(){
+      const d = schedDay();
+      return `<div class="dismiss">
+        <div class="lbl">오늘 학교는</div>
+        <div class="val">${ d && d.dismissal ? toAmPm(d.dismissal)+'에 끝나요' : '시간 정보가 없어요' }</div>
+      </div>`;
+    }
+  },
+
+  today: {
+    name:'오늘 일정', emoji:'📌', desc:'하교 후 학원·약속을 시간 순서로', needsCal:true, wide:true,
+    render(){
+      const d = schedDay();
+      const evs = (d && d.events) || [];
+      if(!evs.length) return `<div class="empty" style="padding:28px"><b>🏠</b>오늘은 일정이 없어요.<br>집에서 푹 쉬어요!</div>`;
+      const now = new Date();
+      const nextIdx = evs.findIndex(e => !e.allDay && evDate(e.end || e.start) > now);
+      return evs.map((e,i)=>`
+        <div class="ev ${ e.allDay ? '' : i===nextIdx ? 'next' : (i<nextIdx || nextIdx<0 ? 'past' : '') }">
+          <span class="evtime">${ e.allDay ? '하루' : hhmm(e.start) }</span>
+          <span class="evemo">${evIcon(e.title)}</span>
+          <span class="evbody">
+            <span class="evtitle">${esc(e.title)}${ i===nextIdx ? '<span class="evtag">다음</span>' : '' }</span>
+            ${ e.location ? `<span class="evloc">📍 ${esc(e.location)}</span>` : '' }
+          </span>
+        </div>`).join('');
+    }
+  },
+
+  week: {
+    name:'이번 주 일정', emoji:'📅', desc:'월요일부터 일요일까지 한눈에', needsCal:true, wide:true,
+    render(){
+      const c = gcal().cache; if(!c) return '';
+      const tk = todayKey(), now = new Date();
+      return `<div class="weekgrid">` + DAYS.map((name,i)=>{
+        const k = addDays(c.from, i);
+        const d = c.days[k] || {dismissal:null, events:[]};
+        const evs = d.events || [];
+        return `<div class="dcard ${k===tk?'today':''} ${i>=5?'wknd':''}">
+          <div class="dhead">
+            <span class="dname">${name}</span>
+            <span class="ddate">${k.slice(5).replace('-','/')}</span>
+            ${ d.dismissal ? `<span class="dbell">🔔 ${toAmPm(d.dismissal)}</span>` : '' }
+          </div>
+          ${ evs.length ? evs.map(e=>`
+              <div class="dev ${ evDate(e.end||e.start) < now ? 'past' : '' }">
+                <span class="dt">${ e.allDay ? '하루' : hhmm(e.start) }</span>
+                <span class="dn">${evIcon(e.title)} ${esc(e.title)}</span>
+              </div>`).join('')
+            : '<div class="dnone">일정 없음</div>' }
+        </div>`;
+      }).join('') + `</div>`;
+    }
+  },
+
+  timetable: {
+    name:'오늘 시간표', emoji:'📚', desc:'요일별 과목. "오늘 무슨 시간?"에 답해줘요',
+    fields:[{k:'plan', t:'lines', label:'요일별 과목',
+             hint:'한 줄에 하나씩. 예)\n월 국어,수학,통합,안전\n화 국어,수학,통합'}],
+    render(w){
+      const list = lineFor(w.plan, dowOf(todayKey()));
+      if(!list.length) return `<div class="dnone">오늘 시간표가 없어요</div>`;
+      return list.map((s,i)=>`<div class="period"><span class="n">${i+1}</span><span class="s">${esc(s)}</span></div>`).join('');
+    }
+  },
+
+  supplies: {
+    name:'오늘 준비물', emoji:'🎒', desc:'요일별 준비물. 누르면 챙긴 표시가 돼요',
+    fields:[{k:'plan', t:'lines', label:'요일별 준비물',
+             hint:'한 줄에 하나씩. 예)\n월 실내화,줄넘기\n수 리코더,물감'}],
+    render(w){
+      const list = lineFor(w.plan, dowOf(todayKey()));
+      if(!list.length) return `<div class="dnone">오늘은 챙길 게 없어요</div>`;
+      const done = (db.supplyDone && db.supplyDone[todayKey()]) || [];
+      return `<div class="chips2">` + list.map(s=>
+        `<button data-supply="${esc(s)}" class="${done.includes(s)?'on':''}">${esc(s)}</button>`).join('') + `</div>`;
+    }
+  },
+
+  dday: {
+    name:'D-Day', emoji:'⏳', desc:'소풍·방학까지 며칠 남았는지',
+    fields:[{k:'title', t:'text', label:'무슨 날인가요?', ph:'예: 여름방학'},
+            {k:'date',  t:'date', label:'날짜'},
+            {k:'emoji', t:'emoji', label:'그림', opts:['⏳','🎂','🏖️','🎄','🎒','✈️','🎉','🏫','🎁','⛄']}],
+    render(w){
+      if(!w.date) return `<div class="dnone">날짜를 정해 주세요</div>`;
+      const diff = Math.round((parseKey(w.date) - parseKey(todayKey()))/86400000);
+      const txt = diff === 0 ? '오늘!' : diff > 0 ? `D-${diff}` : `D+${-diff}`;
+      return `<div class="dday ${diff===0?'today':''}">
+        <div class="emo">${w.emoji || '⏳'}</div>
+        <div class="num">${txt}</div>
+        <div class="nm">${esc(w.title || '')}</div>
+      </div>`;
+    }
+  },
+
+  weather: {
+    name:'오늘 날씨', emoji:'🌤️', desc:'우산이 필요한지 알려줘요',
+    fields:[{k:'city', t:'select', label:'어느 동네인가요?', opts:()=>Object.keys(KR_CITIES)}],
+    render(w){
+      const d = wxCache[w.id];
+      if(!w.lat) return `<div class="dnone">도시를 정해 주세요</div>`;
+      if(!d)     return `<div class="dnone">날씨를 불러오는 중…</div>`;
+      if(d.err)  return `<div class="dnone">날씨를 못 가져왔어요</div>`;
+      const c = wxCode(d.code);
+      return `<div class="wx">
+          <span class="ico">${c.e}</span>
+          <span>
+            <div class="t">${Math.round(d.temp)}°</div>
+            <div class="s">${c.k} · ${esc(w.cityName||w.city)}<br>최고 ${Math.round(d.max)}° 최저 ${Math.round(d.min)}°</div>
+          </span>
+        </div>
+        ${ d.rain >= 40 ? `<div class="tip">☔ 우산을 챙기세요 (비 올 확률 ${d.rain}%)</div>`
+         : d.min <= 5   ? `<div class="tip">🧣 오늘 추워요. 따뜻하게 입어요</div>`
+         : d.max >= 30  ? `<div class="tip">🥤 더워요. 물 많이 마셔요</div>` : '' }`;
+    }
+  },
+
+  memo: {
+    name:'엄마 한마디', emoji:'💌', desc:'아이에게 남기는 짧은 메시지',
+    fields:[{k:'text', t:'area', label:'하고 싶은 말', ph:'예: 오늘도 파이팅! 학원 끝나고 바로 와요'}],
+    render(w){ return `<div class="memo">${esc(w.text || '아직 메모가 없어요')}</div>`; }
+  },
+
+  water: {
+    name:'물 마시기', emoji:'💧', desc:'하루에 몇 컵 마셨는지 세어요',
+    fields:[{k:'goal', t:'num', label:'하루 목표 (컵)', ph:'6'}],
+    render(w){
+      const goal = Number(w.goal) || 6;
+      const n = (db.water && db.water[todayKey()]) || 0;
+      return `<div class="cups">` + [...Array(goal)].map((_,i)=>
+        `<button data-cup="${i+1}" class="${i<n?'on':''}">💧</button>`).join('') + `</div>
+        <div style="text-align:center;margin-top:11px;font-size:15px;font-weight:800;color:var(--muted)">
+          ${n} / ${goal} 컵${ n>=goal ? ' · 다 마셨어요! 🎉' : '' }</div>`;
+    }
+  }
+};
+
+/* "월 국어,수학" 형태의 줄들에서 해당 요일 목록 뽑기 */
+function lineFor(text, dow){
+  if(!text) return [];
+  const day = DAYS[dow];
+  for(const line of String(text).split('\n')){
+    const t = line.trim(); if(!t) continue;
+    if(t[0] === day || t.startsWith(day+'요일')){
+      return t.replace(/^[가-힣]+요일|^./,'').replace(/^[\s:,]+/,'')
+              .split(/[,·]/).map(x=>x.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+
+function wxCode(c){
+  if(c===0) return {e:'☀️', k:'맑음'};
+  if(c<=2)  return {e:'🌤️', k:'구름 조금'};
+  if(c===3) return {e:'☁️', k:'흐림'};
+  if(c<=48) return {e:'🌫️', k:'안개'};
+  if(c<=57) return {e:'🌦️', k:'이슬비'};
+  if(c<=67) return {e:'🌧️', k:'비'};
+  if(c<=77) return {e:'🌨️', k:'눈'};
+  if(c<=82) return {e:'🌧️', k:'소나기'};
+  if(c<=86) return {e:'🌨️', k:'소낙눈'};
+  return {e:'⛈️', k:'천둥번개'};
+}
+
+/* ---------- 위젯 목록 ---------- */
+function widgets(){
+  if(!db.widgets) db.widgets = [
+    {id:uid(), type:'dismissal'},
+    {id:uid(), type:'today'},
+    {id:uid(), type:'week'}
+  ];
+  return db.widgets;
+}
+
+let wxCache = {};
+let wedit = false;
+
 function renderSched(){
   const el = $('#viewSched'), g = gcal();
+  const list = widgets();
+  const needCal = list.some(w => WT[w.type] && WT[w.type].needsCal);
 
-  if(!g.url){
-    el.innerHTML = `
+  const bar = `
+    <div class="wbar">
+      ${ wedit
+          ? `<button class="btn accent" id="wgAdd">＋ 위젯 추가</button>
+             <button class="btn" id="wgDone">✓ 다 했어요</button>`
+          : `<button class="btn ghost" id="wgEdit" style="flex:0 0 auto">✏️ 위젯 편집</button>
+             <span style="flex:1"></span>
+             ${ g.cache ? `<button class="btn ghost" id="sRefresh" style="flex:0 0 auto">🔄 새로고침</button>` : '' }` }
+    </div>`;
+
+  if(needCal && !g.url){
+    el.innerHTML = bar + `
       <div class="setup">
         <div class="ico">📅</div>
         <h3>아직 달력이 연결되지 않았어요</h3>
@@ -1506,90 +1870,236 @@ function renderSched(){
       </div>`;
     return;
   }
-  if(schedLoading && !g.cache){
-    el.innerHTML = `<div class="setup"><div class="ico">⏳</div><h3>달력을 불러오는 중이에요</h3></div>`;
+  if(needCal && !g.cache && schedLoading){
+    el.innerHTML = bar + `<div class="setup"><div class="ico">⏳</div><h3>달력을 불러오는 중이에요</h3></div>`;
     return;
   }
-  if(!g.cache){
-    el.innerHTML = `
+  if(needCal && !g.cache){
+    el.innerHTML = bar + `
       <div class="setup">
-        <div class="ico">😢</div>
-        <h3>달력을 못 가져왔어요</h3>
+        <div class="ico">😢</div><h3>달력을 못 가져왔어요</h3>
         <p>${esc(g.lastError || '연결을 확인해 주세요.')}</p>
         <button class="btn" id="sRetry">다시 해보기</button>
       </div>`;
     return;
   }
 
-  const tk    = todayKey();
-  const ws    = g.cache.from;
-  const today = g.cache.days[tk] || {dismissal:null, events:[]};
-  const now   = new Date();
+  el.innerHTML = bar + `<div class="wgrid">` + list.map((w, i)=>{
+    const def = WT[w.type];
+    if(!def) return '';
+    let body = '';
+    try{ body = def.render(w) || ''; }catch(err){ body = `<div class="dnone">표시할 수 없어요</div>`; }
+    return `
+      <div class="w ${def.wide?'w-wide':''}" data-wid="${w.id}">
+        <div class="w-head">
+          <span class="w-title">${def.emoji} ${esc(w.title || def.name)}</span>
+          <span class="w-tools">
+            <button data-wup="${w.id}" ${i===0?'disabled style="opacity:.3"':''}>↑</button>
+            <button data-wdn="${w.id}" ${i===list.length-1?'disabled style="opacity:.3"':''}>↓</button>
+            ${ def.fields ? `<button data-wcfg="${w.id}">⚙️</button>` : '' }
+            <button class="del" data-wdel="${w.id}">✕</button>
+          </span>
+        </div>
+        ${body}
+      </div>`;
+  }).join('') + `</div>` + (g.cache ? `
+    <div class="sfoot"><span class="t">${ampmTime(new Date(g.cache.at), true)}에 가져옴</span></div>` : '');
 
-  /* 오늘 일정 — 시각이 없는 것도 함께 보여줍니다 */
-  const after   = today.events || [];
-  const nextIdx = after.findIndex(e => !e.allDay && evDate(e.end || e.start) > now);
-
-  el.innerHTML = `
-    <div class="todaypane">
-    <div class="dismiss">
-      <div class="lbl">오늘 학교는</div>
-      <div class="val">${ today.dismissal ? toAmPm(today.dismissal) + '에 끝나요' : '시간 정보가 없어요' }</div>
-    </div>
-
-    ${ after.length
-        ? after.map((e,i)=>`
-            <div class="ev ${ e.allDay ? '' : i === nextIdx ? 'next' : (i < nextIdx || nextIdx < 0 ? 'past' : '') }">
-              <span class="evtime">${ e.allDay ? '하루' : hhmm(e.start) }</span>
-              <span class="evemo">${evIcon(e.title)}</span>
-              <span class="evbody">
-                <span class="evtitle">${esc(e.title)}${ i === nextIdx ? '<span class="evtag">다음</span>' : '' }</span>
-                ${ e.location ? `<span class="evloc">📍 ${esc(e.location)}</span>` : '' }
-              </span>
-            </div>`).join('')
-        : `<div class="empty"><b>🏠</b>오늘은 하교 후 일정이 없어요.<br>집에서 푹 쉬어요!</div>` }
-    </div>
-
-    <div class="wtitle">📅 이번 주 일정</div>
-    <div class="weekgrid">
-      ${ DAYS.map((name, i)=>{
-        const k = addDays(ws, i);
-        const d = g.cache.days[k] || {dismissal:null, events:[]};
-        const evs = d.events || [];
-        return `
-          <div class="dcard ${k===tk?'today':''} ${i>=5?'wknd':''}">
-            <div class="dhead">
-              <span class="dname">${name}</span>
-              <span class="ddate">${k.slice(5).replace('-','/')}</span>
-              ${ d.dismissal ? `<span class="dbell">🔔 ${toAmPm(d.dismissal)}</span>` : '' }
-            </div>
-            ${ evs.length
-                ? evs.map(e=>`
-                    <div class="dev ${ evDate(e.end || e.start) < now ? 'past' : '' }">
-                      <span class="dt">${ e.allDay ? '하루' : hhmm(e.start) }</span>
-                      <span class="dn">${evIcon(e.title)} ${esc(e.title)}</span>
-                    </div>`).join('')
-                : '<div class="dnone">일정 없음</div>' }
-          </div>`;
-      }).join('') }
-    </div>
-
-    <div class="sfoot">
-      <span class="t">${ampmTime(new Date(g.cache.at), true)}에 가져옴</span>
-      <button id="sRefresh">🔄 새로고침</button>
-    </div>`;
+  paintClocks();
+  list.filter(w=>w.type==='weather' && w.lat && !wxCache[w.id]).forEach(loadWeather);
 }
 
-function toMin(hhmmStr){ const [h,m] = hhmmStr.split(':').map(Number); return h*60 + (m||0); }
-function toAmPm(hhmmStr){
-  const [h,m] = hhmmStr.split(':').map(Number);
-  const d = new Date(); d.setHours(h, m||0, 0, 0);
-  return ampmTime(d);
+/* 시계 바늘은 1초마다 따로 움직입니다 */
+function paintClocks(){
+  const n = new Date();
+  const h = (n.getHours()%12) + n.getMinutes()/60;
+  const m = n.getMinutes() + n.getSeconds()/60;
+  const set = (el, ang, len)=>{
+    const a = (ang - 90) * Math.PI/180;
+    el.setAttribute('x2', 50 + len*Math.cos(a));
+    el.setAttribute('y2', 50 + len*Math.sin(a));
+  };
+  document.querySelectorAll('.clockface').forEach(f=>{
+    set(f.querySelector('[data-hand="h"]'), h*30, 23);
+    set(f.querySelector('[data-hand="m"]'), m*6,  32);
+    set(f.querySelector('[data-hand="s"]'), n.getSeconds()*6, 36);
+  });
+  document.querySelectorAll('[data-clock="t"]').forEach(e=> e.textContent = ampmTime(n));
+  const d = parseKey(todayKey());
+  document.querySelectorAll('[data-clock="d"]').forEach(e=>
+    e.textContent = `${d.getMonth()+1}월 ${d.getDate()}일 ${DAYS[dowOf(todayKey())]}요일`);
+}
+setInterval(()=>{ if($('#viewSched').style.display !== 'none') paintClocks(); }, 1000);
+
+/* ---------- 날씨 ---------- */
+/* 외부 검색은 한국어 지명을 잘 못 찾아서 좌표를 직접 넣어 둡니다 */
+const KR_CITIES = {
+  '서울':[37.5665,126.9780], '인천':[37.4563,126.7052], '수원':[37.2636,127.0286],
+  '성남':[37.4200,127.1265], '용인':[37.2411,127.1776], '고양':[37.6584,126.8320],
+  '부천':[37.5035,126.7660], '안양':[37.3943,126.9568], '안산':[37.3219,126.8309],
+  '화성':[37.1996,126.8310], '평택':[36.9921,127.1129], '남양주':[37.6360,127.2165],
+  '파주':[37.7599,126.7800], '김포':[37.6152,126.7156], '의정부':[37.7382,127.0338],
+  '광명':[37.4784,126.8646], '시흥':[37.3800,126.8029], '하남':[37.5393,127.2148],
+  '구리':[37.5943,127.1296], '오산':[37.1499,127.0773], '이천':[37.2721,127.4350],
+  '춘천':[37.8813,127.7300], '원주':[37.3422,127.9202], '강릉':[37.7519,128.8761],
+  '대전':[36.3504,127.3845], '세종':[36.4801,127.2890], '천안':[36.8151,127.1139],
+  '청주':[36.6424,127.4890], '아산':[36.7898,127.0018], '대구':[35.8714,128.6014],
+  '포항':[36.0190,129.3435], '경주':[35.8562,129.2247], '구미':[36.1196,128.3446],
+  '안동':[36.5684,128.7294], '부산':[35.1796,129.0756], '울산':[35.5384,129.3114],
+  '창원':[35.2280,128.6811], '김해':[35.2285,128.8894], '진주':[35.1800,128.1076],
+  '양산':[35.3350,129.0373], '광주':[35.1595,126.8526], '전주':[35.8242,127.1480],
+  '익산':[35.9483,126.9576], '군산':[35.9676,126.7368], '목포':[34.8118,126.3922],
+  '여수':[34.7604,127.6622], '순천':[34.9506,127.4872], '제주':[33.4996,126.5312],
+  '서귀포':[33.2541,126.5600]
+};
+async function loadWeather(w){
+  wxCache[w.id] = {loading:true};
+  try{
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lon}`
+            + `&current=temperature_2m,weather_code`
+            + `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max`
+            + `&timezone=Asia%2FSeoul&forecast_days=1`;
+    const j = await (await fetch(u)).json();
+    wxCache[w.id] = {
+      temp:j.current.temperature_2m, code:j.current.weather_code,
+      max:j.daily.temperature_2m_max[0], min:j.daily.temperature_2m_min[0],
+      rain:j.daily.precipitation_probability_max[0] || 0
+    };
+  }catch(e){ wxCache[w.id] = {err:true}; }
+  if($('#viewSched').style.display !== 'none') renderSched();
 }
 
-$('#viewSched').addEventListener('click', e=>{
-  if(e.target.id === 'sRefresh' || e.target.id === 'sRetry') return loadSchedule(true);
-  if(e.target.id === 'sSetup')  return $('#gearBtn').click();
+/* ---------- 위젯 조작 ---------- */
+$('#viewSched').addEventListener('click', async e=>{
+  const t = e.target;
+
+  if(t.id === 'sRefresh' || t.id === 'sRetry'){ wxCache = {}; return loadSchedule(true); }
+  if(t.id === 'sSetup')  return $('#gearBtn').click();
+  if(t.id === 'wgDone'){ wedit = false; document.body.classList.remove('wedit'); return renderSched(); }
+  if(t.id === 'wgEdit'){
+    if(db.pin) return openPin('widget');          // 부모만 편집
+    wedit = true; document.body.classList.add('wedit'); return renderSched();
+  }
+  if(t.id === 'wgAdd') return openWPick();
+
+  const cup = t.closest('[data-cup]');
+  if(cup){
+    db.water = db.water || {};
+    const k = todayKey(), n = Number(cup.dataset.cup);
+    db.water[k] = (db.water[k] === n) ? n-1 : n;    // 같은 컵을 다시 누르면 하나 줄어요
+    save(); soundCheck(); return renderSched();
+  }
+  const sup = t.closest('[data-supply]');
+  if(sup){
+    db.supplyDone = db.supplyDone || {};
+    const k = todayKey(), name = sup.dataset.supply;
+    const arr = db.supplyDone[k] || [];
+    db.supplyDone[k] = arr.includes(name) ? arr.filter(x=>x!==name) : [...arr, name];
+    save(); soundCheck(); return renderSched();
+  }
+
+  const list = widgets();
+  const move = (id, dir)=>{
+    const i = list.findIndex(w=>w.id===id), j = i+dir;
+    if(i<0 || j<0 || j>=list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    save(); renderSched();
+  };
+  if(t.dataset.wup) return move(t.dataset.wup, -1);
+  if(t.dataset.wdn) return move(t.dataset.wdn,  1);
+  if(t.dataset.wcfg) return openWCfg(t.dataset.wcfg);
+  if(t.dataset.wdel){
+    const w = list.find(x=>x.id===t.dataset.wdel);
+    if(w && confirm(`"${WT[w.type].name}" 위젯을 뺄까요?`)){
+      db.widgets = list.filter(x=>x.id!==t.dataset.wdel);
+      save(); renderSched();
+    }
+    return;
+  }
+});
+
+
+/* ---------- 위젯 고르기 ---------- */
+function openWPick(){
+  $('#wpickList').innerHTML = Object.entries(WT).map(([type, d])=>`
+    <button data-add="${type}">
+      <span class="e">${d.emoji}</span>
+      <span><span class="n">${d.name}</span><span class="d">${d.desc}</span></span>
+    </button>`).join('');
+  $('#wpickModal').classList.add('open');
+}
+$('#wpickList').addEventListener('click', e=>{
+  const b = e.target.closest('[data-add]'); if(!b) return;
+  const type = b.dataset.add;
+  const w = {id:uid(), type};
+  widgets().push(w);
+  save();
+  $('#wpickModal').classList.remove('open');
+  renderSched();
+  if(WT[type].fields) openWCfg(w.id);       // 설정이 필요한 건 바로 열어줍니다
+  else toast(`${WT[type].name} 위젯을 넣었어요`);
+});
+
+/* ---------- 위젯 설정 ---------- */
+let wcfgId = null, wcfgEmoji = '';
+function openWCfg(id){
+  const w = widgets().find(x=>x.id===id); if(!w) return;
+  const def = WT[w.type]; if(!def.fields) return;
+  wcfgId = id; wcfgEmoji = w.emoji || (def.fields.find(f=>f.t==='emoji')||{opts:['⏳']}).opts[0];
+
+  $('#wcfgTitle').textContent = `${def.emoji} ${def.name}`;
+  $('#wcfgSub').textContent   = def.desc;
+  $('#wcfgWarn').style.display = 'none';
+
+  $('#wcfgFields').innerHTML = def.fields.map(f=>{
+    const v = w[f.k] == null ? '' : String(w[f.k]);
+    if(f.t === 'emoji')
+      return `<label class="fl">${f.label}</label>
+        <div class="pick" id="wcfgEmoji">${f.opts.map(o=>
+          `<button type="button" data-em="${o}" class="${o===wcfgEmoji?'on':''}" style="font-size:22px">${o}</button>`).join('')}</div>`;
+    if(f.t === 'select'){
+      const opts = typeof f.opts === 'function' ? f.opts() : f.opts;
+      return `<label class="fl">${f.label}</label>
+        <select data-f="${f.k}">${opts.map(o=>
+          `<option value="${esc(o)}" ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+    }
+    if(f.t === 'lines' || f.t === 'area')
+      return `<label class="fl">${f.label}</label>
+        <textarea data-f="${f.k}" placeholder="${esc(f.hint || f.ph || '')}">${esc(v)}</textarea>`;
+    const type = f.t === 'date' ? 'date' : f.t === 'num' ? 'number' : 'text';
+    return `<label class="fl">${f.label}</label>
+      <input type="${type}" data-f="${f.k}" value="${esc(v)}" placeholder="${esc(f.ph || '')}">`;
+  }).join('');
+
+  $('#wcfgModal').classList.add('open');
+  $('#wcfgModal .sheet').scrollTop = 0;
+}
+
+$('#wcfgFields').addEventListener('click', e=>{
+  const b = e.target.closest('[data-em]'); if(!b) return;
+  wcfgEmoji = b.dataset.em;
+  [...b.parentElement.children].forEach(c=>c.classList.toggle('on', c.dataset.em === wcfgEmoji));
+});
+
+$('#wcfgSave').addEventListener('click', async ()=>{
+  const w = widgets().find(x=>x.id===wcfgId); if(!w) return;
+  const def = WT[w.type];
+
+  $('#wcfgFields').querySelectorAll('[data-f]').forEach(el=>{ w[el.dataset.f] = el.value.trim(); });
+  if(def.fields.some(f=>f.t==='emoji')) w.emoji = wcfgEmoji;
+
+  /* 날씨는 고른 도시의 좌표를 넣어 둡니다 */
+  if(w.type === 'weather'){
+    const c = KR_CITIES[w.city];
+    if(!c){ $('#wcfgWarn').textContent = '도시를 골라 주세요.'; $('#wcfgWarn').style.display='block'; return; }
+    w.lat = c[0]; w.lon = c[1]; w.cityName = w.city;
+    delete wxCache[w.id];
+  }
+
+  save();
+  $('#wcfgModal').classList.remove('open');
+  renderSched();
+  toast('저장했어요');
 });
 
 /* ==========================================================
@@ -1603,6 +2113,7 @@ function switchView(v){
   $('#gearBtn').style.display = v==='parent' ? 'none' : '';
 
   if(v !== 'today') setEditMode(false);
+  if(v !== 'sched'){ wedit = false; document.body.classList.remove('wedit'); }
   document.body.classList.toggle('wide', v === 'sched');
   document.body.classList.toggle('notoday', v === 'today' && !isToday());
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.view === v));
