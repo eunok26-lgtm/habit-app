@@ -393,6 +393,20 @@
   }
   .cups button.on{filter:none; opacity:1; border-color:#b6ddf0; background:#eaf4fb}
 
+  /* 비상 연락처 */
+  .calls{display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px}
+  .call{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    padding:16px 10px; border-radius:18px; text-decoration:none;
+    background:#f7f1e8; border:2px solid var(--line); color:var(--ink);
+  }
+  .call:active{background:var(--accent); border-color:var(--accent); color:#fff}
+  .call .e{font-size:32px; line-height:1}
+  .call .n{font-size:16px; font-weight:800}
+  .callnote{
+    margin-top:11px; font-size:13px; font-weight:600; color:var(--muted); line-height:1.5;
+  }
+
   /* 위젯 고르기 */
   .wpick{display:grid; grid-template-columns:1fr; gap:9px}
   .wpick button{
@@ -739,7 +753,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23c';
+const APP_VERSION = '2026-08-23d';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -1791,6 +1805,42 @@ const WT = {
     render(w){ return `<div class="memo">${esc(w.text || '아직 메모가 없어요')}</div>`; }
   },
 
+  emergency: {
+    name:'비상 연락처', emoji:'📞', desc:'급할 때 눌러서 바로 연락해요',
+    fields:[
+      {k:'list', t:'lines', label:'연락처',
+       hint:'한 줄에 하나씩 "이름 번호". 예)\n엄마 010-1234-5678\n아빠 010-2345-6789\n학교 02-123-4567'},
+      {k:'how', t:'select', label:'누르면 어떻게 할까요?',
+       opts:['페이스타임 오디오','전화 걸기','문자 보내기','카카오톡 열기']}
+    ],
+    render(w){
+      const list = String(w.list || '').split('\n')
+        .map(l=>l.trim()).filter(Boolean)
+        .map(l=>{
+          const m = l.match(/^(.+?)[\s:]+([\d\-+()\s]+)$/);
+          if(m) return {name:m[1].trim(), num:m[2].replace(/[^\d+]/g,'')};
+          if(/^[\d\-+()\s]+$/.test(l)) return {name:l.trim(), num:l.replace(/[^\d+]/g,'')};  // 119 처럼 번호만
+          return null;
+        })
+        .filter(Boolean);
+      if(!list.length) return `<div class="dnone">연락처를 넣어 주세요</div>`;
+
+      const how = w.how || '페이스타임 오디오';
+      const href = n =>
+        how === '전화 걸기'      ? `tel:${n}` :
+        how === '문자 보내기'    ? `sms:${n}` :
+        how === '카카오톡 열기'  ? `kakaotalk://` : `facetime-audio:${n}`;
+
+      return `<div class="calls">` + list.map(c=>`
+        <a class="call" href="${href(c.num)}">
+          <span class="e">${contactEmoji(c.name)}</span>
+          <span class="n">${esc(c.name)}</span>
+        </a>`).join('') + `</div>
+        ${ how === '카카오톡 열기'
+            ? `<div class="callnote">카카오톡 앱만 열려요. 누구에게 걸지는 아이가 직접 골라야 합니다.</div>` : '' }`;
+    }
+  },
+
   water: {
     name:'물 마시기', emoji:'💧', desc:'하루에 몇 컵 마셨는지 세어요',
     fields:[{k:'goal', t:'num', label:'하루 목표 (컵)', ph:'6'}],
@@ -1817,6 +1867,15 @@ function lineFor(text, dow){
     }
   }
   return [];
+}
+
+function contactEmoji(name){
+  const m = [[/엄마|어머니|모/,'👩'], [/아빠|아버지|부/,'👨'], [/할머니|외할머니/,'👵'],
+             [/할아버지|외할아버지/,'👴'], [/이모|고모|숙모/,'👩‍🦰'], [/삼촌|외삼촌/,'🧑'],
+             [/누나|언니/,'👧'], [/형|오빠/,'👦'], [/학교|담임|선생/,'🏫'], [/학원/,'📚'],
+             [/119|소방|구급/,'🚑'], [/112|경찰/,'🚓'], [/병원/,'🏥']];
+  for(const [re, e] of m) if(re.test(name)) return e;
+  return '📞';
 }
 
 function wxCode(c){
