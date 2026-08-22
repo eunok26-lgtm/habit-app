@@ -772,7 +772,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23g';
+const APP_VERSION = '2026-08-23h';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -1683,7 +1683,7 @@ async function loadSchedule(force){
   const g = gcal();
   if(!g.url || schedLoading) return;
   const ws = weekStart(todayKey());
-  if(!force && g.cache && g.cache.from === ws && Date.now() - g.cache.at < 10*60*1000) return;
+  if(!force && g.cache && g.cache.from === ws && Date.now() - g.cache.at < 5*60*1000) return;
 
   schedLoading = true;
   renderSched();
@@ -2067,6 +2067,15 @@ function paintClocks(){
     e.textContent = `${d.getMonth()+1}월 ${d.getDate()}일 ${DAYS[dowOf(todayKey())]}요일`);
 }
 setInterval(()=>{ if($('#viewSched').style.display !== 'none') paintClocks(); }, 1000);
+
+/* 달력을 알아서 다시 가져옵니다 — 버튼을 누를 일이 거의 없게 */
+const schedVisible = () => $('#viewSched').style.display !== 'none' && !document.hidden;
+
+setInterval(()=>{ if(schedVisible()) loadSchedule(); }, 5*60*1000);   // 열어두면 주기적으로
+document.addEventListener('visibilitychange', ()=>{                   // 앱으로 돌아왔을 때
+  if(schedVisible()) loadSchedule();
+});
+window.addEventListener('focus', ()=>{ if(schedVisible()) loadSchedule(); });
 
 /* ---------- 날씨 ---------- */
 /* 외부 검색은 한국어 지명을 잘 못 찾아서 좌표를 직접 넣어 둡니다 */
