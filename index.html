@@ -617,7 +617,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23a';
+const APP_VERSION = '2026-08-23b';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -653,13 +653,39 @@ function fixSlots(){
   (db.presets||[]).forEach(p=>{ if(!ids.includes(p.slot)) p.slot = last; });
   if(moved) save();
 }
+
+/* 예전엔 아침 루틴이 평일에만 깔렸습니다.
+   오늘부터 다음 주까지, 아침이 비어 있는 주말에만 한 번 채워 넣습니다. */
+function backfillWeekendMorning(){
+  if(db.weekendMorningDone) return 0;
+  db.weekendMorningDone = true;
+
+  const seed = SEED_ROUTINES.find(r => r.slot === 'morning');
+  const ids  = slots().map(s=>s.id);
+  if(!seed || !ids.includes('morning')){ save(); return 0; }
+
+  const tk  = todayKey();
+  const end = addDays(weekStart(tk), 13);      // 다음 주 일요일까지
+  let n = 0;
+
+  for(let k = tk; k <= end; k = addDays(k, 1)){
+    if(dowOf(k) < 5) continue;                                   // 토·일만
+    if(itemsOf(k).some(i => i.slot === 'morning')) continue;      // 이미 있으면 그대로 둠
+    seed.items.forEach(([label, icon, dur])=>{
+      addItem(k, label, icon, 'morning', dur);
+      n++;
+    });
+  }
+  save();
+  return n;
+}
 const ICONS = ['🪥','🛏️','🧦','🍚','🎒','📚','✏️','🧼','🚿','🧸','🥋','🎹','⚽','🎨','🧹','💊','🐶','📝','🍎','🧃','🎧','🌙','⏰','💧'];
 const DURS = [0, 3, 5, 10, 15, 20, 30];   // 분 · 0이면 타이머 없음
 
 /* 처음 열었을 때 깔리는 기본 루틴  [이름, 그림, 타이머(분)]
    맛보기로 시간대마다 하나씩만 넣어둡니다. 나머지는 부모 모드에서 추가하세요. */
 const SEED_ROUTINES = [
-  {slot:'morning', days:[0,1,2,3,4],     items:[['세수하기','🧼',0],  ['양치하기','🪥',3]]},
+  {slot:'morning', days:[0,1,2,3,4,5,6], items:[['세수하기','🧼',0],  ['양치하기','🪥',3]]},
   {slot:'night',   days:[0,1,2,3,4,5,6], items:[['숙제하기','✏️',20], ['내일 준비물','🎒',0]]}
 ];
 const SEED_PRESETS = [
@@ -1639,6 +1665,7 @@ async function forceUpdate(){
 (function init(){
   if(!storageOK) $('#storageWarn').style.display = '';
   slots(); fixSlots();            // 시간대 준비 + 예전 데이터 정리
+  backfillWeekendMorning();       // 주말 아침 루틴 한 번 채우기
   const k = todayKey();
   viewDate = k;
   tickClock();
