@@ -453,6 +453,7 @@
     align-items:center; justify-content:center; padding:20px;
   }
   .modal.open{display:flex}
+  #slotModal{z-index:120}   /* 할 일 추가 창 위에 뜨도록 */
   .sheet{
     background:var(--bg); border-radius:26px; width:100%; max-width:560px;
     max-height:90vh; overflow-y:auto; padding:26px; box-shadow:0 20px 60px rgba(0,0,0,.25);
@@ -796,7 +797,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23k';
+const APP_VERSION = '2026-08-23l';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -1239,7 +1240,6 @@ function renderToday(){
   /* 추가 버튼은 편집 모드에서만 (평소 화면은 깔끔하게) */
   const addBtn = editMode
     ? `<button class="addrow" id="tAdd">＋ 할 일 추가</button>
-       <button class="addrow" id="tAddSlot" style="margin-top:8px">＋ 시간대 추가</button>
        <button class="addrow" id="tRoutines" style="margin-top:8px">🔁 매주 반복하는 일 (${routines().length})</button>`
     : '';
 
@@ -1277,13 +1277,15 @@ function renderToday(){
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 /* ---------- 시간대 이름 바꾸기 ---------- */
-let slotCtx = null, slotIcon = '🌅';
+let slotCtx = null, slotIcon = '🌅', slotFromAdd = false;
 
-/* id 를 주면 고치기, 안 주면 새로 만들기 */
-function openSlot(id){
+/* id 를 주면 고치기, 안 주면 새로 만들기.
+   fromAdd 는 "할 일 추가" 창의 목록에서 불렀다는 뜻입니다. */
+function openSlot(id, fromAdd){
   const s = id ? slots().find(x=>x.id === id) : null;
   if(id && !s) return;
-  slotCtx = id; slotIcon = s ? s.emoji : SLOT_ICONS[0];
+  slotCtx = id; slotFromAdd = !!fromAdd;
+  slotIcon = s ? s.emoji : SLOT_ICONS[0];
 
   $('#slotModal h3').textContent = s ? '시간대 이름 바꾸기' : '시간대 추가';
   $('#slotName').value = s ? s.name : '';
@@ -1375,15 +1377,28 @@ function saveSlot(){
   const name = $('#slotName').value.trim();
   if(!name) return toast('이름을 적어주세요');
 
+  /* 같은 이름이 두 개 있으면 목록에서 구분이 안 됩니다 */
+  if(slots().some(s => s.name === name && s.id !== slotCtx))
+    return toast(`"${name}"은 이미 있어요`);
+
+  let newId = null;
   if(slotCtx){
     const s = slots().find(x=>x.id === slotCtx); if(!s) return;
     s.name = name; s.emoji = slotIcon;
   }else{
     const list = slots();
-    list.push({id:uid(), name, emoji:slotIcon, color:SLOT_COLORS[list.length % SLOT_COLORS.length]});
+    newId = uid();
+    list.push({id:newId, name, emoji:slotIcon, color:SLOT_COLORS[list.length % SLOT_COLORS.length]});
   }
   save();
   $('#slotModal').classList.remove('open');
+
+  /* 할 일 추가 창에서 부른 경우엔 그 창을 그대로 두고 새 시간대를 골라 줍니다 */
+  if(slotFromAdd){
+    slotFromAdd = false;
+    paintSlotOptions(newId || slotCtx);
+    return toast(`"${name}" 시간대를 넣었어요`);
+  }
   renderToday();
   toast(slotCtx ? '바꿨어요' : `"${name}" 시간대를 넣었어요`);
 }
@@ -1399,7 +1414,6 @@ $('#todayList').addEventListener('click', e=>{
     editWeek = weekStart(k);
     return openAdd();
   }
-  if(e.target.id === 'tAddSlot')  return openSlot(null);   // 새 시간대
   if(e.target.id === 'tRoutines') return openRoutines();
 
   // 시간대 이름 바꾸기 (편집 모드일 때만)
@@ -1634,10 +1648,7 @@ function openAdd(ctx){
   paintRepeat();
 
   $('#addLabel').value = src ? src.label : '';
-  /* 시간대 목록은 지금 쓰는 것에서 만듭니다 */
-  $('#addSlot').innerHTML = slots().map(s=>
-    `<option value="${s.id}">${s.emoji} ${esc(s.name)}</option>`).join('');
-  $('#addSlot').value  = src ? src.slot : slots()[slots().length-1].id;
+  paintSlotOptions(src ? src.slot : slots()[slots().length-1].id);
   $('#addIcons').innerHTML = ICONS.map(ic=>`<button type="button" data-ic="${ic}" class="${ic===pickIcon?'on':''}">${ic}</button>`).join('');
   $('#addDays').innerHTML  = DAYS.map((d,i)=>`<button type="button" data-dow="${i}" class="${pickDays.has(i)?'on':''}">${d}</button>`).join('');
   $('#addDur').innerHTML   = DURS.map(d=>`<button type="button" data-dur="${d}" class="${d===pickDur?'on':''}">${d ? d+'분' : '없음'}</button>`).join('');
@@ -1646,6 +1657,26 @@ function openAdd(ctx){
   $('#addModal .sheet').scrollTop = 0;
   setTimeout(()=>$('#addLabel').focus(), 80);
 }
+
+/* 시간대 목록 + 맨 아래 "새 시간대 추가" */
+let slotPrev = null;
+function paintSlotOptions(selected){
+  $('#addSlot').innerHTML =
+    slots().map(s=>`<option value="${s.id}">${s.emoji} ${esc(s.name)}</option>`).join('')
+    + `<option value="__new__">＋ 새 시간대 추가…</option>`;
+  $('#addSlot').value = selected;
+  slotPrev = selected;
+}
+
+/* 목록에서 "새 시간대 추가"를 고르면 작은 창이 뜹니다 */
+$('#addSlot').addEventListener('change', e=>{
+  if(e.target.value === '__new__'){
+    paintSlotOptions(slotPrev);      // 고르기 전 값으로 되돌려 두고
+    openSlot(null, true);            // 창을 띄웁니다
+  }else{
+    slotPrev = e.target.value;
+  }
+});
 
 $('#addIcons').addEventListener('click', e=>{
   const b = e.target.closest('[data-ic]'); if(!b) return;
@@ -1681,6 +1712,8 @@ function doAdd(){
   const label = $('#addLabel').value.trim();
   if(!label) return warn('할 일 이름을 적어주세요.');
   const slot = $('#addSlot').value;
+  if(!editWeek) editWeek = weekStart(viewDate);      // 어느 주에 넣을지 기준
+  if(slot === '__new__') return warn('시간대를 골라주세요.');
 
   /* 반복 루틴 고치기 — 들어간 날이 모두 바뀝니다 */
   if(addCtx && addCtx.rid){
@@ -1828,7 +1861,11 @@ document.addEventListener('keydown', e=>{
 });
 
 document.querySelectorAll('[data-close]').forEach(b=>{
-  b.addEventListener('click', ()=> b.closest('.modal').classList.remove('open'));
+  b.addEventListener('click', ()=>{
+    const m = b.closest('.modal');
+    if(m.id === 'slotModal') slotFromAdd = false;
+    m.classList.remove('open');
+  });
 });
 document.querySelectorAll('.modal').forEach(m=>{
   m.addEventListener('click', e=>{
