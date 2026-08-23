@@ -672,6 +672,15 @@
     <label class="fl">시간을 정해줄까요? <span style="font-weight:600;color:var(--muted)">— 타이머가 같이 나와요</span></label>
     <div class="pick" id="addDur"></div>
 
+    <div id="repeatWrap">
+      <label class="fl">얼마나 자주 하나요?</label>
+      <div class="pick">
+        <button type="button" data-rep="once"   style="flex:1">이번 주만</button>
+        <button type="button" data-rep="weekly" style="flex:1">매주 반복</button>
+      </div>
+      <p class="hint" id="repeatHint" style="margin:8px 0 0"></p>
+    </div>
+
     <div id="daysWrap">
       <label class="fl">무슨 요일에?</label>
       <div class="pick" id="addDays"></div>
@@ -688,6 +697,16 @@
       <button class="btn ghost" data-close>취소</button>
       <button class="btn accent" id="addSave">추가하기</button>
     </div>
+  </div>
+</div>
+
+<!-- 매주 반복하는 일 -->
+<div class="modal" id="routineModal">
+  <div class="sheet tall" style="max-width:440px">
+    <h3>매주 반복하는 일</h3>
+    <p class="sub">요일마다 자동으로 들어가는 할 일이에요. 고치거나 지우면 들어간 날이 모두 함께 바뀝니다.</p>
+    <div id="routineList"></div>
+    <div class="row"><button class="btn ghost wide" data-close>닫기</button></div>
   </div>
 </div>
 
@@ -777,7 +796,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23i';
+const APP_VERSION = '2026-08-23j';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -817,6 +836,7 @@ function fixSlots(){
 /* 예전엔 아침 루틴이 평일에만 깔렸습니다.
    오늘부터 다음 주까지, 아침이 비어 있는 주말에만 한 번 채워 넣습니다. */
 function backfillWeekendMorning(){
+  if(routines().length) return 0;        // 루틴을 쓰면 알아서 채워집니다
   if(db.weekendMorningDone) return 0;
   db.weekendMorningDone = true;
 
@@ -879,21 +899,17 @@ function save(){
 }
 
 function seed(){
-  const d = { childName:'', presets:[], plan:{}, timers:{},
+  const d = { childName:'', presets:[], plan:{}, timers:{}, routines:[],
               slots: DEFAULT_SLOTS.map(s=>({...s})) };
   SEED_PRESETS.forEach(([label,icon,slot,dur])=>{
     d.presets.push({id:uid(), label, icon, slot, durationMin:dur});
   });
-  // 이번 주에 기본 루틴 깔기
-  const monday = weekStart(todayKey());
+  /* 기본 루틴은 매주 반복으로 넣습니다 — 다음 주에도 그대로 이어집니다 */
+  const from = weekStart(todayKey());
   SEED_ROUTINES.forEach(r=>{
-    r.days.forEach(dow=>{
-      const dateK = addDays(monday, dow);
-      d.plan[dateK] = d.plan[dateK] || [];
-      r.items.forEach(([label,icon,dur])=>{
-        d.plan[dateK].push({id:uid(), label, icon, slot:r.slot, durationMin:dur||0,
-                            done:false, doneAt:null, updatedAt:Date.now()});
-      });
+    r.items.forEach(([label,icon,dur])=>{
+      d.routines.push({id:uid(), label, icon, slot:r.slot, durationMin:dur||0,
+                       days:r.days.slice(), from, updatedAt:Date.now()});
     });
   });
   return d;
@@ -1081,6 +1097,77 @@ function tickClock(){
     `${d.getMonth()+1}월 ${d.getDate()}일 (${DAYS[dowOf(k)]}) <b>${ampmTime(new Date(), true)}</b>`;
 }
 
+/* ==========================================================
+   매주 반복하는 일 (루틴)
+   정의만 저장해 두고, 그 날짜를 열 때 할 일로 채워 넣습니다.
+   채워진 할 일에는 rid 가 붙어서 나중에 한꺼번에 고치고 지울 수 있습니다.
+   ========================================================== */
+function routines(){ return db.routines || (db.routines = []); }
+function skipKey(rid, k){ return rid + '|' + k; }
+
+function ensureRoutines(dateK){
+  const rs = routines(); if(!rs.length) return;
+  const dow = dowOf(dateK);
+  const skip = db.routineSkip || {};
+  let added = 0;
+
+  rs.forEach(r=>{
+    if(!r.days || !r.days.includes(dow)) return;
+    if(r.from && dateK < r.from) return;              // 만들기 전 날짜는 그대로 둡니다
+    if(skip[skipKey(r.id, dateK)]) return;            // 그 날만 지운 경우
+    const list = db.plan[dateK] || (db.plan[dateK] = []);
+    if(list.some(i => i.rid === r.id)) return;        // 이미 있음
+    list.push({id:uid(), rid:r.id, label:r.label, icon:r.icon, slot:r.slot,
+               durationMin:r.durationMin || 0, done:false, doneAt:null, updatedAt:Date.now()});
+    added++;
+  });
+  if(added) save();
+}
+
+/* 오늘부터 2주치를 미리 채워 둡니다 (루틴을 만들거나 고친 직후) */
+function materializeAhead(){
+  const tk = todayKey();
+  for(let i=0;i<14;i++) ensureRoutines(addDays(tk, i));
+}
+
+/* 루틴을 고치면 오늘 이후 할 일에 반영합니다. 지난 날은 기록이라 그대로 둡니다. */
+function applyRoutine(r){
+  const tk = todayKey();
+  Object.keys(db.plan).forEach(k=>{
+    if(k < tk) return;
+    db.plan[k] = (db.plan[k] || []).filter(it=>{
+      if(it.rid !== r.id) return true;
+      if(!r.days.includes(dowOf(k))) return false;    // 요일에서 빠졌으면 제거
+      it.label = r.label; it.icon = r.icon; it.slot = r.slot;
+      it.durationMin = r.durationMin || 0; it.updatedAt = Date.now();
+      return true;
+    });
+  });
+  materializeAhead();
+}
+
+function deleteRoutine(id){
+  const tk = todayKey();
+  let n = 0;
+  Object.keys(db.plan).forEach(k=>{
+    if(k < tk) return;
+    const before = (db.plan[k] || []).length;
+    db.plan[k] = (db.plan[k] || []).filter(it => it.rid !== id);
+    n += before - db.plan[k].length;
+  });
+  db.routines = routines().filter(r => r.id !== id);
+  save();
+  return n;
+}
+
+function daysText(days){
+  if(!days || !days.length) return '없음';
+  if(days.length === 7) return '매일';
+  if(days.length === 5 && [0,1,2,3,4].every(d=>days.includes(d))) return '평일';
+  if(days.length === 2 && [5,6].every(d=>days.includes(d))) return '주말';
+  return days.slice().sort((a,b)=>a-b).map(d=>DAYS[d]).join('·');
+}
+
 function itemsOf(dateK){ return db.plan[dateK] || []; }
 
 /* 오늘 화면 편집 모드 — 켜면 체크 대신 ✏️ ✕ 가 나옵니다 */
@@ -1139,6 +1226,7 @@ function paintDateNav(){
 
 function renderToday(){
   const k = viewDate;
+  ensureRoutines(k);                 // 반복 루틴을 이 날짜에 채워 넣습니다
   const list = itemsOf(k);
   const box = $('#todayList');
 
@@ -1151,7 +1239,8 @@ function renderToday(){
   /* 추가 버튼은 편집 모드에서만 (평소 화면은 깔끔하게) */
   const addBtn = editMode
     ? `<button class="addrow" id="tAdd">＋ 할 일 추가</button>
-       <button class="addrow" id="tAddSlot" style="margin-top:8px">＋ 시간대 추가</button>`
+       <button class="addrow" id="tAddSlot" style="margin-top:8px">＋ 시간대 추가</button>
+       <button class="addrow" id="tRoutines" style="margin-top:8px">🔁 매주 반복하는 일 (${routines().length})</button>`
     : '';
 
   if(!list.length){
@@ -1242,6 +1331,44 @@ $('#slotIcons').addEventListener('click', e=>{
   [...$('#slotIcons').children].forEach(c=>c.classList.toggle('on', c.dataset.sic === slotIcon));
 });
 
+/* ---------- 매주 반복하는 일 목록 ---------- */
+function openRoutines(){
+  const rs = routines();
+  $('#routineList').innerHTML = rs.length
+    ? rs.map(r=>{
+        const s = slots().find(x=>x.id === r.slot);
+        return `
+          <div class="ptask" style="padding:12px 13px">
+            <span style="font-size:20px">${r.icon}</span>
+            <span style="flex:1; min-width:0">
+              <span style="font-weight:800">${esc(r.label)}</span>
+              <span style="display:block; font-size:13px; font-weight:600; color:var(--muted); margin-top:2px">
+                ${daysText(r.days)} · ${s ? esc(s.name) : '?'}${r.durationMin ? ` · ⏱${r.durationMin}분` : ''}
+              </span>
+            </span>
+            <button class="x" data-redit="${r.id}">✏️</button>
+            <button class="x" data-rdel="${r.id}">✕</button>
+          </div>`;
+      }).join('')
+    : `<div class="empty" style="padding:30px"><b>🔁</b>아직 없어요.<br>
+        할 일을 추가할 때 <b>매주 반복</b>을 고르면 여기 생깁니다.</div>`;
+  $('#routineModal').classList.add('open');
+}
+
+$('#routineList').addEventListener('click', e=>{
+  const ed = e.target.closest('[data-redit]');
+  if(ed){ $('#routineModal').classList.remove('open'); return openAdd({rid: ed.dataset.redit}); }
+
+  const dl = e.target.closest('[data-rdel]');
+  if(dl){
+    const r = routines().find(x=>x.id === dl.dataset.rdel); if(!r) return;
+    if(!confirm(`"${r.label}" 반복을 그만둘까요?\n오늘부터 앞으로의 할 일에서 빠집니다. 지난 기록은 그대로 남아요.`)) return;
+    const n = deleteRoutine(r.id);
+    openRoutines(); refreshCurrent();
+    toast(n ? `그만뒀어요 · 할 일 ${n}개를 뺐습니다` : '그만뒀어요');
+  }
+});
+
 const SLOT_COLORS = ['var(--morning)','var(--after)','var(--night)','#f6a6c1','#9fd8a0','#c9b8f0'];
 
 function saveSlot(){
@@ -1272,7 +1399,8 @@ $('#todayList').addEventListener('click', e=>{
     editWeek = weekStart(k);
     return openAdd();
   }
-  if(e.target.id === 'tAddSlot') return openSlot(null);   // 새 시간대
+  if(e.target.id === 'tAddSlot')  return openSlot(null);   // 새 시간대
+  if(e.target.id === 'tRoutines') return openRoutines();
 
   // 시간대 이름 바꾸기 (편집 모드일 때만)
   const sh = editMode && e.target.closest('[data-slot]');
@@ -1285,9 +1413,16 @@ $('#todayList').addEventListener('click', e=>{
   const db2 = editMode && e.target.closest('[data-del]');
   if(db2){
     e.stopPropagation();
+    const gone = itemsOf(k).find(i=>i.id === db2.dataset.del);
+    /* 반복 루틴에서 온 것이면 그 날만 빼둡니다 (안 그러면 바로 다시 생깁니다) */
+    if(gone && gone.rid){
+      db.routineSkip = db.routineSkip || {};
+      db.routineSkip[skipKey(gone.rid, k)] = 1;
+    }
     delete db.timers[db2.dataset.del];
     db.plan[k] = itemsOf(k).filter(i=>i.id !== db2.dataset.del);
-    save(); renderToday(); return toast('지웠어요');
+    save(); renderToday();
+    return toast(gone && gone.rid ? '이 날만 뺐어요' : '지웠어요');
   }
 
   // 타이머 버튼 (체크로 넘어가지 않게)
@@ -1453,27 +1588,50 @@ function copyLastWeek(){
 /* ==========================================================
    할 일 추가 모달
    ========================================================== */
-let pickIcon = ICONS[0];
-let pickDays = new Set();
-let pickDur  = 0;
-let addCtx   = null;      // null = 새로 추가, {date,id} = 고치기
+let pickIcon   = ICONS[0];
+let pickDays   = new Set();
+let pickDur    = 0;
+let pickRepeat = 'once';  // once = 이번 주만, weekly = 매주 반복
+let addCtx     = null;    // null = 새로 추가, {date,id} = 하루만, {rid} = 루틴
 
-/* ctx 를 주면 그 항목을 고치는 창으로 열립니다 */
+function paintRepeat(){
+  document.querySelectorAll('#repeatWrap [data-rep]').forEach(b=>
+    b.classList.toggle('on', b.dataset.rep === pickRepeat));
+  $('#repeatHint').textContent = pickRepeat === 'weekly'
+    ? '고른 요일마다 매주 자동으로 들어갑니다. 나중에 한꺼번에 고치거나 지울 수 있어요.'
+    : '지금 보고 있는 주에만 들어갑니다.';
+}
+document.querySelector('#repeatWrap').addEventListener('click', e=>{
+  const b = e.target.closest('[data-rep]'); if(!b) return;
+  pickRepeat = b.dataset.rep;
+  paintRepeat();
+});
+
+/* ctx 종류
+     null                 → 새로 추가
+     {date, id}           → 그 날 할 일 하나 고치기
+     {rid}                → 매주 반복 루틴 고치기 (전체 적용)            */
 function openAdd(ctx){
   addCtx = ctx || null;
-  const it = addCtx ? itemsOf(addCtx.date).find(i=>i.id === addCtx.id) : null;
-  if(addCtx && !it) return;
+  const rt = addCtx && addCtx.rid ? routines().find(r=>r.id === addCtx.rid) : null;
+  const it = addCtx && addCtx.id  ? itemsOf(addCtx.date).find(i=>i.id === addCtx.id) : null;
+  if(addCtx && !rt && !it) return;
+  const src = rt || it;
 
-  pickIcon = it ? it.icon : ICONS[0];
-  pickDur  = it ? (it.durationMin || 0) : 0;
-  pickDays = it ? new Set() : new Set([dowOf(viewDate)]);   // 보고 있는 날 기준
+  pickIcon   = src ? src.icon : ICONS[0];
+  pickDur    = src ? (src.durationMin || 0) : 0;
+  pickRepeat = rt ? 'weekly' : 'once';
+  pickDays   = rt ? new Set(rt.days) : it ? new Set() : new Set([dowOf(viewDate)]);
 
-  $('#addTitle').textContent = it ? '할 일 고치기' : '할 일 추가';
-  $('#addSave').textContent  = it ? '고치기' : '추가하기';
-  $('#daysWrap').style.display = it ? 'none' : '';
-  document.querySelector('#addModal .sub').textContent = it
-    ? '이 날의 할 일만 바뀝니다.'
-    : '여러 요일을 함께 고르면 한 번에 들어갑니다.';
+  $('#addTitle').textContent = rt ? '반복 루틴 고치기' : it ? '할 일 고치기' : '할 일 추가';
+  $('#addSave').textContent  = src ? '고치기' : '추가하기';
+  $('#daysWrap').style.display   = it ? 'none' : '';
+  $('#repeatWrap').style.display = it ? 'none' : '';
+  document.querySelector('#addModal .sub').textContent =
+    rt ? '이 루틴이 들어간 날이 모두 함께 바뀝니다.'
+       : it ? '이 날의 할 일만 바뀝니다.'
+            : '여러 요일을 함께 고르면 한 번에 들어갑니다.';
+  paintRepeat();
 
   $('#addLabel').value = it ? it.label : '';
   /* 시간대 목록은 지금 쓰는 것에서 만듭니다 */
@@ -1524,7 +1682,22 @@ function doAdd(){
   if(!label) return warn('할 일 이름을 적어주세요.');
   const slot = $('#addSlot').value;
 
-  /* 고치기 */
+  /* 반복 루틴 고치기 — 들어간 날이 모두 바뀝니다 */
+  if(addCtx && addCtx.rid){
+    if(!pickDays.size) return warn('요일을 하나 이상 골라주세요.');
+    const r = routines().find(x=>x.id === addCtx.rid);
+    if(r){
+      r.label = label; r.icon = pickIcon; r.slot = slot;
+      r.durationMin = pickDur; r.days = [...pickDays]; r.updatedAt = Date.now();
+      applyRoutine(r);
+    }
+    save();
+    $('#addModal').classList.remove('open');
+    refreshCurrent();
+    return toast(`"${label}" 루틴을 고쳤어요`);
+  }
+
+  /* 하루치 고치기 */
   if(addCtx){
     const it = itemsOf(addCtx.date).find(i=>i.id === addCtx.id);
     if(it){
@@ -1538,8 +1711,20 @@ function doAdd(){
     return toast('고쳤어요');
   }
 
-  /* 새로 추가 */
   if(!pickDays.size) return warn('요일을 하나 이상 골라주세요.');
+
+  /* 매주 반복으로 새로 만들기 */
+  if(pickRepeat === 'weekly'){
+    routines().push({id:uid(), label, icon:pickIcon, slot, durationMin:pickDur,
+                     days:[...pickDays], from:todayKey(), updatedAt:Date.now()});
+    materializeAhead();
+    save();
+    $('#addModal').classList.remove('open');
+    refreshCurrent();
+    return toast(`"${label}" · ${daysText([...pickDays])}마다 자동으로 들어가요`);
+  }
+
+  /* 이번 주만 */
   [...pickDays].forEach(i => addItem(addDays(editWeek, i), label, pickIcon, slot, pickDur));
   save();
   $('#addModal').classList.remove('open');
@@ -2415,7 +2600,8 @@ async function forceUpdate(){
 (function init(){
   if(!storageOK) $('#storageWarn').style.display = '';
   slots(); fixSlots();            // 시간대 준비 + 예전 데이터 정리
-  backfillWeekendMorning();       // 주말 아침 루틴 한 번 채우기
+  backfillWeekendMorning();       // 예전 데이터용 (루틴이 없을 때만)
+  materializeAhead();             // 반복 루틴을 앞으로 2주치 채워 둠
   const k = todayKey();
   viewDate = k;
   tickClock();
