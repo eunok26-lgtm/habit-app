@@ -796,7 +796,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23j';
+const APP_VERSION = '2026-08-23k';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -1633,11 +1633,11 @@ function openAdd(ctx){
             : '여러 요일을 함께 고르면 한 번에 들어갑니다.';
   paintRepeat();
 
-  $('#addLabel').value = it ? it.label : '';
+  $('#addLabel').value = src ? src.label : '';
   /* 시간대 목록은 지금 쓰는 것에서 만듭니다 */
   $('#addSlot').innerHTML = slots().map(s=>
     `<option value="${s.id}">${s.emoji} ${esc(s.name)}</option>`).join('');
-  $('#addSlot').value  = it ? it.slot : slots()[slots().length-1].id;
+  $('#addSlot').value  = src ? src.slot : slots()[slots().length-1].id;
   $('#addIcons').innerHTML = ICONS.map(ic=>`<button type="button" data-ic="${ic}" class="${ic===pickIcon?'on':''}">${ic}</button>`).join('');
   $('#addDays').innerHTML  = DAYS.map((d,i)=>`<button type="button" data-dow="${i}" class="${pickDays.has(i)?'on':''}">${d}</button>`).join('');
   $('#addDur').innerHTML   = DURS.map(d=>`<button type="button" data-dur="${d}" class="${d===pickDur?'on':''}">${d ? d+'분' : '없음'}</button>`).join('');
