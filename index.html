@@ -321,21 +321,28 @@
   .wgrid{
     --gap:14px; --wcols:1;
     --colw:calc((100% - (var(--wcols) - 1) * var(--gap)) / var(--wcols));
-    display:grid; grid-template-columns:1fr; gap:var(--gap); align-items:start;
+    /* minmax(0,1fr) 이라야 칸이 실제로 균등해집니다.
+       그냥 1fr 이면 내용이 넓은 위젯이 제 칸을 밀어 넓혀서
+       가운데로 옮길 때 폭이 달라집니다. */
+    display:grid; grid-template-columns:minmax(0,1fr); gap:var(--gap); align-items:start;
   }
-  @media (min-width:700px){  .wgrid{--wcols:2; grid-template-columns:repeat(2,1fr)} }
-  @media (min-width:1060px){ .wgrid{--wcols:3; grid-template-columns:repeat(3,1fr)} }
+  @media (min-width:700px){  .wgrid{--wcols:2; grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media (min-width:1060px){ .wgrid{--wcols:3; grid-template-columns:repeat(3,minmax(0,1fr))} }
   .w-lg{grid-column:span 2}
   .w-full{grid-column:1 / -1}
   @media (max-width:699px){ .w-lg{grid-column:auto} }
 
-  /* 가운데·오른쪽 정렬 — 한 줄을 차지하되 폭은 고른 크기 그대로 */
-  .w.al-center, .w.al-right{grid-column:1 / -1}
-  .w.al-center{margin-left:auto; margin-right:auto}
-  .w.al-right {margin-left:auto; margin-right:0}
+  /* 가운데·오른쪽 정렬 — 한 줄을 차지하되 폭은 고른 크기 그대로.
+     margin:auto 를 쓰면 그리드 항목이 내용 크기로 줄어들어 버리므로
+     justify-self 와 명시적인 width 로 잡습니다. */
+  .w.al-center, .w.al-right{grid-column:1 / -1; max-width:100%}
+  .w.al-center{justify-self:center}
+  .w.al-right {justify-self:end}
   .w.al-center:not(.w-lg):not(.w-full),
-  .w.al-right:not(.w-lg):not(.w-full){max-width:var(--colw)}
-  .w.al-center.w-lg, .w.al-right.w-lg{max-width:calc(var(--colw) * 2 + var(--gap))}
+  .w.al-right:not(.w-lg):not(.w-full){width:var(--colw)}
+  .w.al-center.w-lg, .w.al-right.w-lg{width:calc(var(--colw) * 2 + var(--gap))}
+  /* 전체 크기는 이미 한 줄을 다 쓰므로 자리 설정을 무시합니다 */
+  .w.w-full{justify-self:stretch; width:auto}
 
   .w-drag{
     flex:0 0 auto; display:none; width:40px; height:40px; margin-left:-8px;
@@ -352,7 +359,7 @@
   }
   body.dragging-on{user-select:none; -webkit-user-select:none; touch-action:none}
   .w{
-    position:relative; background:var(--card); border:2px solid var(--line);
+    position:relative; min-width:0; background:var(--card); border:2px solid var(--line);
     border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px;
   }
   .w-head{display:flex; align-items:center; gap:8px; margin-bottom:12px}
@@ -371,7 +378,7 @@
   .wbar .btn{flex:1}
 
   /* 시계 */
-  .clockwrap{display:flex; align-items:center; gap:20px; justify-content:center}
+  .clockwrap{display:flex; align-items:center; gap:20px; justify-content:center; flex-wrap:wrap}
   .clockface{width:132px; height:132px; flex:0 0 auto}
   .clockface circle.f{fill:#fffdf8; stroke:var(--line); stroke-width:4}
   .clockface line{stroke-linecap:round}
@@ -810,7 +817,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23o';
+const APP_VERSION = '2026-08-23r';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -2401,6 +2408,7 @@ $('#viewSched').addEventListener('click', async e=>{
   if(t.dataset.wsize){
     const w = list.find(x=>x.id === t.dataset.wsize); if(!w) return;
     w.size = SIZE_ORDER[(SIZE_ORDER.indexOf(wsize(w)) + 1) % SIZE_ORDER.length];
+    if(w.size === 'full') w.align = 'left';      // 전체는 자리 설정이 의미 없습니다
     save(); renderSched();
     return toast(SIZE_NAME[w.size]);
   }
