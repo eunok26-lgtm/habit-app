@@ -810,7 +810,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23n';
+const APP_VERSION = '2026-08-23o';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -2234,9 +2234,8 @@ $('#wgEditTop').addEventListener('click', ()=>{
   setWEdit(true);
 });
 /* 자리 — 왼쪽(기본) · 가운데 · 오른쪽 */
-const ALIGN_ORDER = ['left','center','right'];
-const ALIGN_ICON  = {left:'⬅️', center:'↔️', right:'➡️'};
-const ALIGN_NAME  = {left:'왼쪽', center:'가운데', right:'오른쪽'};
+/* 자리는 끌어다 놓은 가로 위치로 정해집니다 (아래 widgetDrag 참고) */
+const ALIGN_NAME = {left:'왼쪽', center:'가운데', right:'오른쪽'};
 function walign(w){ return w.align || 'left'; }
 
 function sizeClass(w){
@@ -2290,8 +2289,7 @@ function renderSched(){
           <span class="w-drag" data-drag="${w.id}">⠿</span>
           <span class="w-title">${def.emoji} ${esc(w.title || def.name)}</span>
           <span class="w-tools">
-            <button data-wsize="${w.id}"  title="크기">${SIZE_ICON[wsize(w)]}</button>
-            <button data-walign="${w.id}" title="자리" ${wsize(w)==='full'?'disabled style="opacity:.3"':''}>${ALIGN_ICON[walign(w)]}</button>
+            <button data-wsize="${w.id}" title="크기">${SIZE_ICON[wsize(w)]}</button>
             ${ def.fields ? `<button data-wcfg="${w.id}">⚙️</button>` : '' }
             <button class="del" data-wdel="${w.id}">✕</button>
           </span>
@@ -2406,13 +2404,6 @@ $('#viewSched').addEventListener('click', async e=>{
     save(); renderSched();
     return toast(SIZE_NAME[w.size]);
   }
-  if(t.dataset.walign){
-    const w = list.find(x=>x.id === t.dataset.walign); if(!w) return;
-    if(wsize(w) === 'full') return toast('전체 크기는 자리를 옮길 수 없어요');
-    w.align = ALIGN_ORDER[(ALIGN_ORDER.indexOf(walign(w)) + 1) % ALIGN_ORDER.length];
-    save(); renderSched();
-    return toast(ALIGN_NAME[w.align]);
-  }
   if(t.dataset.wcfg) return openWCfg(t.dataset.wcfg);
   if(t.dataset.wdel){
     const w = list.find(x=>x.id===t.dataset.wdel);
@@ -2425,12 +2416,15 @@ $('#viewSched').addEventListener('click', async e=>{
 });
 
 
-/* ---------- 위젯 끌어서 옮기기 (마우스·터치 공통) ---------- */
+/* ---------- 위젯 끌어서 옮기기 (마우스·터치 공통) ----------
+   다른 위젯 위에 놓으면 그 옆자리로 들어가고,
+   빈 곳에 놓으면 한 줄을 차지하면서 놓은 가로 위치대로 왼쪽·가운데·오른쪽이 정해집니다. */
 (function widgetDrag(){
-  let el = null, pid = null, active = false;
+  let el = null, pid = null, active = false, align = 'left';
   let gx = 0, gy = 0, startX = 0, startY = 0, lastSwap = 0;
 
   const pane  = () => $('#viewSched');
+  const grid  = () => document.querySelector('#viewSched .wgrid');
   const cards = () => [...document.querySelectorAll('#viewSched .w')];
 
   /* 자리가 어떻게 바뀌든 잡은 지점이 손가락 아래 그대로 있게 합니다 */
@@ -2440,6 +2434,14 @@ $('#viewSched').addEventListener('click', async e=>{
     el.style.transform = `translate(${x - r.left - gx}px, ${y - r.top - gy}px)`;
   }
 
+  function setAlign(a, x, y){
+    if(align === a) return;
+    align = a;
+    el.classList.toggle('al-center', a === 'center');
+    el.classList.toggle('al-right',  a === 'right');
+    place(x, y);
+  }
+
   document.addEventListener('pointerdown', e=>{
     if(!wedit || (e.pointerType === 'mouse' && e.button !== 0)) return;
     const h = e.target.closest('[data-drag]'); if(!h) return;
@@ -2447,9 +2449,11 @@ $('#viewSched').addEventListener('click', async e=>{
 
     e.preventDefault();
     el = card; pid = e.pointerId; active = false;
+    const w = widgets().find(x=>x.id === card.dataset.wid);
+    align = w ? walign(w) : 'left';
     startX = e.clientX; startY = e.clientY;
     const r = card.getBoundingClientRect();
-    gx = e.clientX - r.left;          // 카드 안에서 잡은 위치
+    gx = e.clientX - r.left;
     gy = e.clientY - r.top;
     /* 캡처는 움직이지 않는 바깥 상자에 겁니다 (손잡이에 걸면 자리 옮길 때 풀립니다) */
     try{ pane().setPointerCapture(pid); }catch(err){}
@@ -2467,13 +2471,33 @@ $('#viewSched').addEventListener('click', async e=>{
     e.preventDefault();
     place(e.clientX, e.clientY);
 
-    if(Date.now() - lastSwap < 130) return;      // 경계에서 덜덜 떨리지 않게
-
     el.style.pointerEvents = 'none';
     const under = document.elementFromPoint(e.clientX, e.clientY);
     el.style.pointerEvents = '';
     const tgt = under && under.closest('#viewSched .w');
-    if(!tgt || tgt === el) return;
+
+    /* 빈 곳 — 한 줄을 차지하고, 놓은 가로 위치로 자리를 정합니다 */
+    if(!tgt || tgt === el){
+      const g = grid(); if(!g) return;
+      const gr = g.getBoundingClientRect();
+      if(e.clientX < gr.left || e.clientX > gr.right) return;
+      const rel = (e.clientX - gr.left) / gr.width;
+      setAlign(rel < 0.34 ? 'left' : rel < 0.67 ? 'center' : 'right', e.clientX, e.clientY);
+
+      /* 맨 아래 빈 곳이면 순서도 마지막으로 */
+      const last = cards().filter(c=>c!==el).pop();
+      if(last && e.clientY > last.getBoundingClientRect().bottom && el.nextElementSibling){
+        g.appendChild(el);
+        lastSwap = Date.now();
+        place(e.clientX, e.clientY);
+      }
+      return;
+    }
+
+    /* 다른 위젯 옆 — 흐름에 맞춰 왼쪽으로 되돌립니다 */
+    setAlign('left', e.clientX, e.clientY);
+
+    if(Date.now() - lastSwap < 130) return;      // 경계에서 덜덜 떨리지 않게
 
     const tr = tgt.getBoundingClientRect();
     const er = el.getBoundingClientRect();
@@ -2492,7 +2516,7 @@ $('#viewSched').addEventListener('click', async e=>{
     if(!el || (e && e.pointerId != null && e.pointerId !== pid)) return;
     if(pid != null){ try{ pane().releasePointerCapture(pid); }catch(err){} }
 
-    const moved = active;
+    const moved = active, id = el.dataset.wid, chosen = align;
     el.classList.remove('dragging');
     el.style.transform = '';
     el.style.pointerEvents = '';
@@ -2502,9 +2526,12 @@ $('#viewSched').addEventListener('click', async e=>{
     if(!moved) return;                            // 그냥 눌렀다 뗀 경우
     const order = cards().map(c => c.dataset.wid);
     const cur   = widgets();
-    db.widgets  = order.map(id => cur.find(w => w.id === id)).filter(Boolean);
+    db.widgets  = order.map(x => cur.find(w => w.id === x)).filter(Boolean);
+    const w = cur.find(x => x.id === id);
+    if(w) w.align = chosen;
     save();
     renderSched();
+    if(w && chosen !== 'left') toast(ALIGN_NAME[chosen]);
   }
   document.addEventListener('pointerup', finish);
   document.addEventListener('pointercancel', finish);
