@@ -52,6 +52,32 @@ const STAGES = [
   {id:'d48', g:'고수', at:'D+3~4년 이후', m:48, listen:[0], focus:[0], read:[0], readName:'책읽기',        extra:[0],  extraName:'어휘·독해·문법 학습서', output:[0], free:true}
 ];
 const STAGE_KEYS = ['listen','focus','read','extra','output'];
+
+/* ==========================================================
+   세트 — 집에 있는 전집을 한 번에 책장에 넣습니다.
+   books: [제목, 집중듣기용 낭독 영상 ID]   videos: [이름, 흘려듣기용 애니메이션 ID]
+   (영상은 2026-09-22 유튜브에서 찾아 앱 안 재생이 되는 것만 골랐습니다)
+   ========================================================== */
+const PACKS = [
+  {id:'arthur20', name:'Arthur Adventure 20종 (Book & CD)', series:'Arthur Adventure', level:'J3',
+   note:'책 20권에는 낭독 영상, 13권에는 PBS 공식 채널의 애니메이션 에피소드가 붙어 있어요.',
+   books:[
+    ["Arthur's Eyes",'BFGwJl0roxg'], ["Arthur's Tooth",'ARDOdWtDuCM'], ["Arthur's New Puppy",'nidU2pkDkwA'],
+    ['Arthur and the True Francine','gyODRyM2OGs'], ["Arthur's Christmas",'Un11oUzd40s'], ["Arthur's Chicken Pox",'Hvij8rWGLQc'],
+    ['Arthur Babysits','G4eOyRYjdQg'], ['Arthur Goes to Camp','kIeYq5-uC6I'], ["Arthur's Family Vacation",'tt7N-blUlkU'],
+    ["Arthur's Baby",'iivqnHj37Po'], ["Arthur's Birthday",'PZGVke6qwZ4'], ["Arthur's Halloween",'xlrpWr9hNq0'],
+    ["Arthur's Teacher Trouble",'lt_6LWDpyn0'], ['Arthur Writes a Story','XEcGW2Iu3bE'], ['Arthur Meets the President','2Tla_FPzH00'],
+    ["Arthur's April Fool",'yzKHNS8WbNA'], ["Arthur's Pet Business",'bMlZdY74HIY'], ["Arthur's TV Trouble",'A-D2X2Jk9rI'],
+    ["Arthur's First Sleepover",'QNH5iVRO8S0'], ["Arthur's Valentine",'DdEjwxnttcQ']
+   ],
+   videos:[
+    ["Arthur's Eyes (애니)",'ykpDPIpx5uY'], ["Arthur's Tooth (애니)",'6JH_VvUg0rQ'], ["Arthur's New Puppy (애니)",'EHGf8-5DXNQ'],
+    ['Arthur and the True Francine (애니)','NUbriNrTiOw'], ["Arthur's Chicken Pox (애니)",'gBQjtdYbHKc'], ['Arthur Babysits (애니)','5mnvoJ9djes'],
+    ['Arthur Goes to Camp (애니)','Z8AEiUgYGGk'], ["Arthur's Family Vacation (애니)",'pzcTcc5jLMQ'], ["Arthur's Baby (애니)",'zglU3AfY6Qw'],
+    ["Arthur's Birthday (애니)",'xTkZKnOB-Dw'], ["Arthur's Spelling Trouble (애니 · Teacher Trouble)",'UIjlQEHxqcI'],
+    ['Arthur Writes a Story (애니)','d8d1bDt-JIM'], ["Arthur's Pet Business (애니)",'XnjIU-ygJxg']
+   ]}
+];
 function stage(){ return STAGES.find(x=>x.id === E().stage) || STAGES[3]; }
 function stageLabel(st){ st = st || stage(); return `${GROUPS[st.g].name} · ${st.at}`; }
 function catName(c, st){
@@ -362,19 +388,38 @@ document.body.insertAdjacentHTML('beforeend', `
   <div class="sheet" style="max-width:460px">
     <h3 id="enVTitle">영상 넣기</h3>
     <p class="sub">흘려듣기로 볼 영상이에요. 재생목록 주소를 넣으면 차례로 이어서 나와요.</p>
-    <label class="fl">이름</label>
-    <input type="text" id="enVName" placeholder="예: Peppa Pig 시즌 1" autocomplete="off">
-    <label class="fl">유튜브 주소</label>
-    <div class="en-ytrow">
-      <input type="text" id="enVYt" placeholder="https://youtu.be/… 또는 재생목록 주소" autocomplete="off">
-      <button type="button" class="btn ghost" id="enVFind">🔎 찾기</button>
+    <div class="pick" id="enVMode" style="margin-bottom:4px">
+      <button type="button" data-vm="one">하나</button>
+      <button type="button" data-vm="many">여러 개 한꺼번에</button>
     </div>
-    <div class="en-ytprev" id="enVYtPrev"></div>
+    <div id="enVOne">
+      <label class="fl">이름</label>
+      <input type="text" id="enVName" placeholder="예: Peppa Pig 시즌 1" autocomplete="off">
+      <label class="fl">유튜브 주소</label>
+      <div class="en-ytrow">
+        <input type="text" id="enVYt" placeholder="https://youtu.be/… 또는 재생목록 주소" autocomplete="off">
+        <button type="button" class="btn ghost" id="enVFind">🔎 찾기</button>
+      </div>
+      <div class="en-ytprev" id="enVYtPrev"></div>
+    </div>
+    <div id="enVMany" style="display:none">
+      <label class="fl">한 줄에 하나씩 — 이름 | 유튜브 주소</label>
+      <textarea id="enVList" placeholder="Arthur's Eyes (애니) | https://youtu.be/…&#10;Arthur's Tooth (애니) | https://youtu.be/…"></textarea>
+    </div>
     <div class="row">
       <button class="btn ghost" data-enclose>취소</button>
       <button class="btn accent" id="enVSave">넣기</button>
     </div>
     <button class="btn ghost wide" id="enVDel" style="margin-top:10px; color:#c0392b">🗑 이 영상 지우기</button>
+  </div>
+</div>
+
+<div class="modal" id="enPackModal">
+  <div class="sheet" style="max-width:460px">
+    <h3>📦 세트 불러오기</h3>
+    <p class="sub">집에 있는 전집을 한 번에 넣어요. 이미 책장에 있는 책·영상은 건너뛰어요.</p>
+    <div id="enPackList"></div>
+    <div class="row"><button class="btn ghost wide" data-enclose>닫기</button></div>
   </div>
 </div>
 
@@ -385,7 +430,7 @@ document.body.insertAdjacentHTML('beforeend', `
 
 function openM(id){ $('#' + id).classList.add('open'); }
 function closeM(id){ $('#' + id).classList.remove('open'); }
-document.querySelectorAll('#enAddModal,#enPickModal,#enFormModal,#enVidModal,#enDetailModal').forEach(m=>{
+document.querySelectorAll('#enAddModal,#enPickModal,#enFormModal,#enVidModal,#enPackModal,#enDetailModal').forEach(m=>{
   m.addEventListener('click', e=>{
     if(e.target === m || e.target.closest('[data-enclose]')) closeM(m.id);
   });
@@ -551,6 +596,7 @@ $('#viewEng').addEventListener('click', e=>{
 
   /* 책장 */
   if(t.id === 'enNew') return openForm(null);
+  if(t.id === 'enPack') return openPacks();
   const fb = t.closest('[data-f]');
   if(fb){ shelfF = fb.dataset.f; return paintShelf(); }
   const tl = t.closest('[data-book]');
@@ -671,10 +717,22 @@ $('#enPickNew').addEventListener('click', ()=>{
 });
 
 /* ---------- 흘려듣기 영상 넣기 / 고치기 ---------- */
-let vidId = null;
+let vidId = null, vidMode = 'one';
+function paintVidMode(){
+  [...$('#enVMode').children].forEach(b=>b.classList.toggle('on', b.dataset.vm === vidMode));
+  $('#enVOne').style.display  = vidMode === 'one'  ? '' : 'none';
+  $('#enVMany').style.display = vidMode === 'many' ? '' : 'none';
+}
+$('#enVMode').addEventListener('click', e=>{
+  const b = e.target.closest('[data-vm]'); if(!b) return;
+  vidMode = b.dataset.vm; paintVidMode();
+});
 function openVid(id){
   const v = id ? vidOf(id) : null;
-  vidId = id;
+  vidId = id; vidMode = 'one';
+  $('#enVMode').style.display = v ? 'none' : '';
+  $('#enVList').value = '';
+  paintVidMode();
   $('#enVTitle').textContent = v ? '영상 고치기' : '영상 넣기';
   $('#enVSave').textContent  = v ? '저장' : '넣기';
   $('#enVDel').style.display = v ? '' : 'none';
@@ -702,6 +760,23 @@ $('#enVFind').addEventListener('click', ()=>{
   toast('찾은 영상 주소를 복사해서 붙여 넣어 주세요');
 });
 $('#enVSave').addEventListener('click', ()=>{
+  if(!vidId && vidMode === 'many'){
+    const have = new Set(E().videos.map(v=>v.title.toLowerCase()));
+    let added = 0, dup = 0, bad = 0;
+    $('#enVList').value.split('\n').forEach(line=>{
+      const [rawT, rawU] = line.split('|');
+      const title = (rawT||'').trim(), yt = (rawU||'').trim();
+      if(!title) return;
+      if(!parseYT(yt)){ bad++; return; }
+      if(have.has(title.toLowerCase())){ dup++; return; }
+      E().videos.push({id:uid(), title, yt, views:0, lastAt:0, addedAt:Date.now(), updatedAt:Date.now()});
+      have.add(title.toLowerCase()); added++;
+    });
+    if(!added && !dup) return toast('"이름 | 유튜브 주소"를 한 줄에 하나씩 적어 주세요');
+    save(); closeM('enVidModal');
+    toast(`📺 ${added}개 넣었어요` + (dup ? ` · 이미 있는 ${dup}개는 건너뛰었어요` : '') + (bad ? ` · 주소가 없는 ${bad}줄은 뺐어요` : ''));
+    pickSrc = 'video'; return openPick('watch');
+  }
   const title = $('#enVName').value.trim(), yt = $('#enVYt').value.trim();
   if(!title) return toast('이름을 적어 주세요');
   if(!parseYT(yt)) return toast('유튜브 주소를 넣어 주세요');
@@ -710,7 +785,7 @@ $('#enVSave').addEventListener('click', ()=>{
   else E().videos.push({id:uid(), title, yt, views:0, lastAt:0, addedAt:Date.now(), updatedAt:Date.now()});
   save(); closeM('enVidModal');
   toast(v ? '고쳤어요' : `📺 "${title}"을 넣었어요`);
-  openPick('watch');
+  pickSrc = 'video'; openPick('watch');
 });
 $('#enVDel').addEventListener('click', ()=>{
   const v = vidOf(vidId); if(!v) return;
@@ -718,7 +793,7 @@ $('#enVDel').addEventListener('click', ()=>{
   E().videos = E().videos.filter(x=>x.id !== v.id);
   save(); closeM('enVidModal');
   toast('지웠어요');
-  openPick('watch');
+  pickSrc = 'video'; openPick('watch');
 });
 
 function logBook(b, t){
@@ -1010,6 +1085,7 @@ function paintShelf(){
   $('#enBody').innerHTML = `
     <div class="en-tools">
       <input type="text" id="enQ" placeholder="🔎 제목이나 시리즈로 찾기" value="${esc(shelfQ)}">
+      <button class="btn ghost" id="enPack">📦 세트</button>
       <button class="btn accent" id="enNew">＋ 책 넣기</button>
     </div>
     <div class="en-filter" id="enFilter"></div>
@@ -1048,6 +1124,42 @@ function paintShelfGrid(){
         </button>`).join('')}</div>`
     : `<div class="empty"><b>📚</b>${books.length ? '해당하는 책이 없어요.' : '책장이 비어 있어요.<br>집에 있는 영어책부터 넣어 볼까요?'}</div>`;
 }
+
+/* ---------- 세트 불러오기 ---------- */
+function openPacks(){
+  const e = E();
+  $('#enPackList').innerHTML = PACKS.map(pk=>{
+    const have = pk.books.filter(([t])=>e.books.some(b=>b.title.toLowerCase() === t.toLowerCase())).length;
+    return `<div class="pcard" style="margin:0 0 10px">
+      <h4>${esc(pk.name)}</h4>
+      <p class="hint" style="margin:0 0 12px">책 ${pk.books.length}권 · 애니메이션 ${pk.videos.length}편 · 레벨 ${pk.level}<br>${esc(pk.note)}
+        ${have ? `<br>이미 ${have}권은 책장에 있어요.` : ''}</p>
+      <button class="btn accent wide" data-pack="${pk.id}">불러오기</button>
+    </div>`;
+  }).join('');
+  openM('enPackModal');
+}
+$('#enPackList').addEventListener('click', e=>{
+  const b = e.target.closest('[data-pack]'); if(!b) return;
+  const pk = PACKS.find(x=>x.id === b.dataset.pack); if(!pk) return;
+  const en = E(), now = Date.now();
+  const hb = new Set(en.books.map(x=>x.title.toLowerCase()));
+  const hv = new Set(en.videos.map(x=>x.title.toLowerCase()));
+  let nb = 0, nv = 0;
+  pk.books.forEach(([title, id])=>{
+    if(hb.has(title.toLowerCase())) return;
+    en.books.push({id:uid(), title, level:pk.level, series:pk.series, yt:`https://youtu.be/${id}`, where:'home', due:'',
+                   react:'', reads:0, listens:0, hears:0, lastAt:0, addedAt:now, updatedAt:now});
+    nb++;
+  });
+  pk.videos.forEach(([title, id])=>{
+    if(hv.has(title.toLowerCase())) return;
+    en.videos.push({id:uid(), title, yt:`https://youtu.be/${id}`, views:0, lastAt:0, addedAt:now, updatedAt:now});
+    nv++;
+  });
+  save(); closeM('enPackModal'); refresh();
+  toast(nb || nv ? `📦 책 ${nb}권 · 영상 ${nv}편을 넣었어요` : '이미 다 들어 있어요');
+});
 
 /* ---------- 책 자세히 ---------- */
 let detailId = null;
