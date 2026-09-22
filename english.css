@@ -293,3 +293,6 @@ div.en-prow{cursor:pointer}
 .en-rc i{font-style:normal; margin-right:4px}
 .en-rc b{color:#c47f1a; margin-left:2px}
 .en-goals label input::placeholder{color:#b8ab9b; font-weight:600}
+
+/* 영상 목록 — 다음 볼 차례 */
+.en-prow.next{border-color:var(--accent); background:#fffaf2}

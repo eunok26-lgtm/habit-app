@@ -11,7 +11,8 @@
      books:[{id,title,level,series,yt,where,due,react,reads,listens,hears,lastAt,addedAt,updatedAt}],
             (listens = 집중듣기 횟수, hears = 흘려듣기 횟수, reads = 읽기 횟수)
      log:{ 'YYYY-MM-DD': {listen,focus,read,korean}(초) + books:[{id,title,t:'focus'|'listen'|'read',at}] },
-     videos:[{id,title,yt,views,lastAt,addedAt,updatedAt}],   ← 흘려듣기 영상
+     videos:[{id,title,yt,series,limit,views,lastAt,addedAt,updatedAt}],   ← 흘려듣기 영상
+            (limit = 몇 분만 보기 — 그 시간에 끝난 것으로 치고 닫습니다)
      log[날짜].vids:[{id,title,at}]                             ← 그 날 본 영상
      run:{ 카테고리: {startedAt, day} }      ← 켜져 있는 스톱워치
    }
@@ -55,11 +56,13 @@ const STAGE_KEYS = ['listen','focus','read','extra','output'];
 
 /* ==========================================================
    세트 — 집에 있는 전집을 한 번에 책장에 넣습니다.
-   books: [제목, 집중듣기용 낭독 영상 ID]   videos: [이름, 흘려듣기용 애니메이션 ID]
-   (영상은 2026-09-22 유튜브에서 찾아 앱 안 재생이 되는 것만 골랐습니다)
+   books: [제목, 집중듣기용 낭독 영상 ID]   videos: [이름, 흘려듣기용 영상 ID, 몇 분만(선택)]
+   vseries: 흘려듣기 목록에서 묶어 보여 줄 이름,  limit: 세트 영상 전체에 적용할 몇 분만 보기
+   (영상은 2026-09-22 유튜브에서 찾아 앱 안 재생이 되는 것만 골랐습니다.
+    Peppa 시즌10·11은 공식 채널 이름 기준 — 영국 방송 Series 8·9 와 같습니다)
    ========================================================== */
 const PACKS = [
-  {id:'arthur20', name:'Arthur Adventure 20종 (Book & CD)', series:'Arthur Adventure', level:'J3',
+  {id:'arthur20', name:'Arthur Adventure 20종 (Book & CD)', series:'Arthur Adventure', vseries:'Arthur 애니', level:'J3',
    note:'책 20권에는 낭독 영상, 13권에는 PBS 공식 채널의 애니메이션 에피소드가 붙어 있어요.',
    books:[
     ["Arthur's Eyes",'BFGwJl0roxg'], ["Arthur's Tooth",'ARDOdWtDuCM'], ["Arthur's New Puppy",'nidU2pkDkwA'],
@@ -76,6 +79,95 @@ const PACKS = [
     ['Arthur Goes to Camp (애니)','Z8AEiUgYGGk'], ["Arthur's Family Vacation (애니)",'pzcTcc5jLMQ'], ["Arthur's Baby (애니)",'zglU3AfY6Qw'],
     ["Arthur's Birthday (애니)",'xTkZKnOB-Dw'], ["Arthur's Spelling Trouble (애니 · Teacher Trouble)",'UIjlQEHxqcI'],
     ['Arthur Writes a Story (애니)','d8d1bDt-JIM'], ["Arthur's Pet Business (애니)",'XnjIU-ygJxg']
+   ]},
+  {id:'peppa-ep11', name:'Peppa Pig 시즌11 — 에피소드 한 편씩 (비공식)', vseries:'Peppa 시즌11 에피소드',
+   note:'아기 Evie가 태어나는 최신 시즌을 에피소드 순서대로. 영국 방송 기준 Series 9. 개인이 올린 영상이라 지워질 수 있어요. "짧은 버전"은 공식 ABC Kids의 3분 편집본, 17·23화는 찾지 못했어요.',
+   videos:[
+    ["시즌11-01 Bigger House",'5bLmLTy0nWI'], ["시즌11-02 The Big Build",'FRsKoXYo_tI'],
+    ["시즌11-03 Decorating",'GiQMWxspPMA'], ["시즌11-04 Bigger Car",'vuki8GNOEEM'],
+    ["시즌11-05 Patchwork Quilt",'OrOoCC_1uKA'], ["시즌11-06 Sibling School",'uRTzVvjOwhw'],
+    ["시즌11-07 Baby's Arrival (짧은 버전)",'AaQ0Cr31Fc0'], ["시즌11-08 Baby Name",'OM4LKml_cX4'],
+    ["시즌11-09 Holding the Baby",'nk2bQMZ3P5k'], ["시즌11-10 Granny Sheep's Art Van",'Aqzj53rnxxY'],
+    ["시즌11-11 Being Inspired",'DGPProMAx-w'], ["시즌11-12 Jigsaw Festival",'LCVpqkxBIuo'],
+    ["시즌11-13 Hobbies",'u3SZxe2gtCA'], ["시즌11-14 Penny Polar Bear's Party (짧은 버전)",'NR7LQFGPYmo'],
+    ["시즌11-15 The Biggest Picture in the World (짧은 버전)",'gQpaU8lP_oA'], ["시즌11-16 Martial Arts (짧은 버전)",'X92sttZXovM'],
+    ["시즌11-18 Hearing Test",'xfuw7wHEko0'], ["시즌11-19 Favourite Sound",'zHIsqtFhW_Y'],
+    ["시즌11-20 Hospital Sleepover (짧은 버전)",'6a_xjS9w1Js'], ["시즌11-21 Caring for Grandpa Pig (짧은 버전)",'21D4kcPfxC0'],
+    ["시즌11-22 Duck Race (짧은 버전)",'mM4BvDXuDEU'], ["시즌11-24 Run Daddy Run (짧은 버전)",'NrCG6M-ns0I'],
+    ["시즌11-25 Coach Peppa (짧은 버전)",'sJi9ZqBpFDA'], ["시즌11-26 The London Marathon (짧은 버전)",'IbAX-OB2V9E']
+   ]},
+  {id:'peppa-ep10', name:'Peppa Pig 시즌10 — 에피소드 한 편씩 (비공식)', vseries:'Peppa 시즌10 에피소드',
+   note:'영국 방송 기준 Series 8. 개인이 올린 영상이라 지워질 수 있어요. 36화(Singing Lesson)는 믿을 만한 영상이 없어 뺐어요.',
+   videos:[
+    ["시즌10-01 Grandpa's Robot",'u6A1oPrHd-Q'], ["시즌10-02 Paper Games",'Hx3dAGomKXw'],
+    ["시즌10-03 Clouds",'A5NED3DB9yY'], ["시즌10-04 Mr. Bull Digs Up The River",'iHo3MhwW0G0'],
+    ["시즌10-05 Granny Sheep Moves In",'VLQQAEttLcU'], ["시즌10-06 Cardboard Boxes",'09DxDDzd2Fs'],
+    ["시즌10-07 Clubhouse Takeaway",'CuQoOUzCCAw'], ["시즌10-08 Walkie-Talkies",'IOEhDdiChqQ'],
+    ["시즌10-09 Peppa's Office",'5Dbn6NycZFU'], ["시즌10-10 Little Swift",'a5lv8fzbKTw'],
+    ["시즌10-11 What Babies Do",'Cev0JKifieE'], ["시즌10-12 Lenses",'SemKgRg74-o'],
+    ["시즌10-13 Igloo (짧은 버전)",'kjB8oqi3GWE'], ["시즌10-14 Mr. Bull is Getting Married",'IWgQpyv5QZ0'],
+    ["시즌10-15 Getting Ready for the Wedding",'d0usE9pLVKI'], ["시즌10-16 Wedding Day",'apZ1BG5Hb_M'],
+    ["시즌10-17 Party Bus",'s1-ULYnCMdE'], ["시즌10-18 Movie Night",'kn7s0-5sJFQ'],
+    ["시즌10-19 Art House Day",'lhRSg2uHqdc'], ["시즌10-20 Wildflower Wood",'J5vhQpqSO4A'],
+    ["시즌10-21 Racquet Games",'fZChg6DcVgQ'], ["시즌10-22 Sunny Day Games",'YOKMDCWetYI'],
+    ["시즌10-23 Magic Trick",'j3CRu6PIfXc'], ["시즌10-24 Jumping Stick",'LXEFYZTdEF8'],
+    ["시즌10-25 Adventure Caravan (짧은 버전)",'kQ7lD7EE-Mc'], ["시즌10-26 Caravan Friends",'zEmvxMudodQ'],
+    ["시즌10-27 Chloé's Birthday Party",'zQGqft2zagg'], ["시즌10-28 Broken Party Bus",'uuMLuUCYIwk'],
+    ["시즌10-29 Spooky Clubhouse",'RA8Wh0XK3S8'], ["시즌10-30 Living Above the Shops",'6pcaVHE0WMg'],
+    ["시즌10-31 Roof Garden",'ODGMCXcoTpw'], ["시즌10-32 Moving Day",'dvPcEQsmCr0'],
+    ["시즌10-33 Everybody Sleepover",'Qt6IzdI3-kc'], ["시즌10-34 Walking Bus",'VQLJdoBaQqA'],
+    ["시즌10-35 Happily Ever After",'0nKBD5IQzEA'], ["시즌10-37 Singing Competition",'_lOEX96fkXk'],
+    ["시즌10-38 Thanksgiving",'DRwaZhI1qyg'], ["시즌10-39 Christmas Cards",'CAW_2dfZ0zE'],
+    ["시즌10-40 Larenzo Lion",'4v5tzW7xISU'], ["시즌10-41 Dinosaurs Alive",'elUcpKjiKh4'],
+    ["시즌10-42 Being Babies",'c4iXS33mhWA'], ["시즌10-43 Mr. Cat's Cafe",'ntuHzqWfjRU'],
+    ["시즌10-44 Cushion Den",'6erx2RASsHo'], ["시즌10-45 Staying Up Late",'G2BR1IdVRC0'],
+    ["시즌10-46 The New TV",'zOo-NfqEWOo'], ["시즌10-47 Indoor Adventure",'z1scEiar7Cw'],
+    ["시즌10-48 Hot Dry Day",'fUT9Ys1E6vE'], ["시즌10-49 Folk Music Band",'xXusJFEN_wA'],
+    ["시즌10-50 Calling Kylie",'d1dOtj_HLek'], ["시즌10-51 House Rules",'lO761H6O-Yk'],
+    ["시즌10-52 The Big Announcement",'KlRRk4EkJtQ']
+   ]},
+  {id:'peppa-s11', name:'Peppa Pig 시즌11 — 공식 모음', vseries:'Peppa 시즌11 모음', limit:60,
+   note:'Peppa Pig 공식 채널의 1~4시간 모음이에요. 맨 앞 에피소드 순서로 정리했고, 60분이 되면 화면이 닫혀요.',
+   videos:[
+    ["시즌11 모음 01 · Peppa Finds a NEW Home",'q_KiY2gkH-E'], ["시즌11 모음 02 · Building the NEW HOME",'8qtHp1-bgDQ'],
+    ["시즌11 모음 03 · Peppa Picks Out NEW Bedroom",'3MMW14jMNEY'], ["시즌11 모음 04 · Peppa Learns How to SEW The PATCHWORK Blanket",'nVp2gqBOJ10'],
+    ["시즌11 모음 05 · Peppa & George Learn to be BIG Siblings",'tLgX68-nQPU'], ["시즌11 모음 06 · New Baby is Born",'U_Or0ubS5j4'],
+    ["시즌11 모음 07 · Peppa Picks the Baby's Name",'sw93MJ0PvD0'], ["시즌11 모음 08 · Peppa Learns How to HOLD a BABY!",'MQMlxwYLbw4'],
+    ["시즌11 모음 09 · Peppa PAINTS Granny Sheep's Van",'tG52bjJDO2w'], ["시즌11 모음 10 · Peppa's AMAZING Artwork!",'Z7oAIXxdgVg'],
+    ["시즌11 모음 11 · Peppa's PUZZLE Competition",'rQeZ9BWbMCA'], ["시즌11 모음 12 · Peppa's REALLY FUNNY Hobbies",'RCkxeBYOkMA'],
+    ["시즌11 모음 13 · George and Peppa's HEARING Test!",'Iyl6jZJV4M0']
+   ]},
+  {id:'peppa-s10', name:'Peppa Pig 시즌10 — 공식 모음', vseries:'Peppa 시즌10 모음', limit:60,
+   note:'Peppa Pig 공식 채널의 모음 55개. 맨 앞 에피소드 순서로 정리했고(뒤쪽 12개는 순서 추정), 60분이 되면 화면이 닫혀요.',
+   videos:[
+    ["시즌10 모음 01 · Grandpa Pig's New Robot!",'_ie4U1eXdL0'], ["시즌10 모음 02 · Playgroup Paper Games!",'gkbnqnWSsz4'],
+    ["시즌10 모음 03 · The Naughty Clouds!",'i7pA9n7iTTo'], ["시즌10 모음 04 · Cleaning Up The River!",'vED44y7ZvFg'],
+    ["시즌10 모음 05 · Granny Sheep Moves In!",'FUA7zbEvWOQ'], ["시즌10 모음 06 · Building A Cardboard House!",'5Ucx3JBj35A'],
+    ["시즌10 모음 07 · Peppa Runs a Clubhouse Takeaway",'m2yXS5uUdyM'], ["시즌10 모음 08 · Walkie Talkies!",'oRJknY8Xb90'],
+    ["시즌10 모음 09 · Peppa's Office Under The Stairs!",'UaZx3fwxuF8'], ["시즌10 모음 10 · The Big Vet Rescue!",'aSIQVzqnoCw'],
+    ["시즌10 모음 11 · What Do Babies Do?",'fLV6O1MLP18'], ["시즌10 모음 12 · What Can You See?",'4Yt9Dr-_cVU'],
+    ["시즌10 모음 13 · Peppa Makes an IGLOO",'i7EDQ3zPb-k'], ["시즌10 모음 14 · The Wedding Announcement!",'jOLA2eewJVw'],
+    ["시즌10 모음 15 · The Wedding Dress!",'3DEKdhBGb5E'], ["시즌10 모음 16 · It's The Wedding Day!",'Fv53tDhgbpQ'],
+    ["시즌10 모음 17 · The Double Decker Party Bus!",'H8lhrNV-nT4'], ["시즌10 모음 18 · The Home Cinema!",'XGYaHYlcx6s'],
+    ["시즌10 모음 19 · Art House Day!",'kEaRABCpXIY'], ["시즌10 모음 20 · Ball Game MAYHEM!!",'_3xWK2FY9BI'],
+    ["시즌10 모음 21 · A Sunny Splash Battle!",'0T_QZAQ7WfE'], ["시즌10 모음 22 · Peppa's Magic Trick!",'Rhv0aqy1HIs'],
+    ["시즌10 모음 23 · Daddy Pig Jumping Stick FAIL!",'i2zijj18W-w'], ["시즌10 모음 24 · RUNAWAY Caravan",'ikWpZj2aeDc'],
+    ["시즌10 모음 25 · Peppa Falls in BOUNCY CASTLE",'xUnY-439kLc'], ["시즌10 모음 26 · Party Bus BREAKS DOWN",'M5tNX7TIPho'],
+    ["시즌10 모음 27 · Decorating the Clubhouse for HALLOWEEN",'YWTpei6fw6E'], ["시즌10 모음 28 · SECRET Shop Passageway",'HnWLNG-ABSc'],
+    ["시즌10 모음 29 · SECRET GARDEN on the Roof!",'6-xa1WJ4cjc'], ["시즌10 모음 30 · GIANT Sleepover Party!",'7brI_ZeyoCI'],
+    ["시즌10 모음 31 · The DISASTROUS Walk to School",'IlgzT6z9F-g'], ["시즌10 모음 32 · Peppa's SILLY Singing Lesson",'Cc_lSvirHww'],
+    ["시즌10 모음 33 · Peppa's SINGING Competition",'auJq_HhX21w'], ["시즌10 모음 34 · Peppa Celebrates THANKSGIVING",'YR7gW-l1j3E'],
+    ["시즌10 모음 35 · Peppa's GIANT Christmas Card",'6h9ii2c6c_8'], ["시즌10 모음 36 · Larenzo Lion Scares Mummy Pig and Peppa!",'4FW7BanQ9Ak'],
+    ["시즌10 모음 37 · Peppa Builds EPIC Cushion Den",'WUxL5H5FnzU'], ["시즌10 모음 38 · Peppa Stays Up PAST Bedtime",'Vat2D2mdeA4'],
+    ["시즌10 모음 39 · Peppa's NEW FUTURISTIC TV",'evKsi-xWjp0'], ["시즌10 모음 40 · Indoor Adventure! Rainy Day Fun!",'lzxqxtlGV4Q'],
+    ["시즌10 모음 41 · BOILING Hot Day!",'dZBIsbS6zcg'], ["시즌10 모음 42 · Video Call with Kylie Kangeroo",'eHEAj4bsf5I'],
+    ["시즌10 모음 43 · Suzy's House Rules",'qmKwNhbetrc'], ["시즌10 모음 44 · Peppa & Mandy Find CHEESE in the Clubhouse",'Vg9n6YQTGew'],
+    ["시즌10 모음 45 · Peppa and George Play with WALKIE TALKIES",'ESCtnG1Jxrk'], ["시즌10 모음 46 · The FUNNY Robot!",'5rA7Hf1OW3M'],
+    ["시즌10 모음 47 · A House for the Snowman!",'o-ArXP1FNGA'], ["시즌10 모음 48 · The GIANT Potato",'fJXJhYZqr0c'],
+    ["시즌10 모음 49 · Granny Sheep Moves In — Peppa Helps to Unpack",'zfB43oNWzsw'], ["시즌10 모음 50 · Peppa's Sandwich Takeaway Shop",'BZi4mBm1Yxk'],
+    ["시즌10 모음 51 · Peppa Meets the Older Kids",'x2J7_vh5NP4'], ["시즌10 모음 52 · Caravan Adventures",'3x0Ieq-Kl9Y'],
+    ["시즌10 모음 53 · Peppa feeds HUNGRY Dragon",'J8lKyElNGcI'], ["시즌10 모음 54 · Peppa Finds a SECRET Door",'Uc8knK0ONgk'],
+    ["시즌10 모음 55 · Miss Cow Gets Married!",'LWnsa9cisb4']
    ]}
 ];
 function stage(){ return STAGES.find(x=>x.id === E().stage) || STAGES[3]; }
@@ -401,6 +493,8 @@ document.body.insertAdjacentHTML('beforeend', `
         <button type="button" class="btn ghost" id="enVFind">🔎 찾기</button>
       </div>
       <div class="en-ytprev" id="enVYtPrev"></div>
+      <label class="fl">몇 분만 보기 <span style="font-weight:600">— 긴 모음 영상일 때. 비워 두면 끝까지</span></label>
+      <input type="number" id="enVLimit" min="1" max="600" placeholder="예: 60">
     </div>
     <div id="enVMany" style="display:none">
       <label class="fl">한 줄에 하나씩 — 이름 | 유튜브 주소</label>
@@ -660,22 +754,33 @@ $('#enPickSeg').addEventListener('click', e=>{
 function paintPick(){
   const q = $('#enPickQ').value.trim().toLowerCase();
   if(pickVideo()){
-    const vs = E().videos.filter(v => !q || v.title.toLowerCase().includes(q))
-      .sort((a,b)=> (b.lastAt||0) - (a.lastAt||0) || a.title.localeCompare(b.title));
-    $('#enPickList').innerHTML = vs.length ? vs.map(v=>{
+    const all = E().videos;
+    const series = [...new Set(all.map(v=>v.series || '기타'))];
+    if(!series.includes(pickSeries)) pickSeries = series.length > 1 ? series[0] : 'all';
+    const chips = series.length > 1
+      ? `<div class="en-filter" style="margin:0 0 10px">${series.map(sr=>
+          `<button data-ser="${esc(sr)}" class="${pickSeries===sr?'on':''}">${esc(sr)}</button>`).join('')}</div>`
+      : '';
+    /* 넣은 순서대로 — 세트는 에피소드 순서로 들어갑니다 */
+    const vs = all.map((v,i)=>({v,i}))
+      .filter(({v}) => (pickSeries === 'all' || (v.series||'기타') === pickSeries) && (!q || v.title.toLowerCase().includes(q)))
+      .map(({v})=>v);
+    const next = vs.find(v => !v.views);
+    $('#enPickList').innerHTML = chips + (vs.length ? vs.map(v=>{
       const y = parseYT(v.yt);
       return `
-      <div class="en-prow" data-pv="${v.id}" role="button">
+      <div class="en-prow ${v === next ? 'next' : ''}" data-pv="${v.id}" role="button">
         ${coverHTML(v, 'sm')}
         <span class="m">
           <span class="n">${esc(v.title)}</span>
-          <span class="s">📺 ${v.views||0}번 봤어요${y && y.list ? ' · 재생목록' : ''}</span>
+          <span class="s">${v === next ? '<span class="en-lv">다음 볼 차례</span>' : ''}
+            📺 ${v.views ? `${v.views}번 봤어요 ✓` : '아직 안 봤어요'}${y && y.list ? ' · 재생목록' : ''}${v.limit ? ` · ⏱ ${v.limit}분만` : ''}</span>
         </span>
         <button class="en-vedit" data-ve="${v.id}" aria-label="고치기">✏️</button>
         <span class="go">▶</span>
       </div>`;
     }).join('')
-    : `<div class="empty" style="padding:30px"><b>📺</b>${q ? '찾는 영상이 없어요.' : '아직 영상이 없어요.<br>아래 <b>＋ 새 영상 넣기</b>로 시작해요.'}</div>`;
+    : `<div class="empty" style="padding:30px"><b>📺</b>${q ? '찾는 영상이 없어요.' : '아직 영상이 없어요.<br>아래 <b>＋ 새 영상 넣기</b>로 시작해요.'}</div>`);
     return;
   }
   let list = E().books.filter(b => !q || (b.title + ' ' + (b.series||'')).toLowerCase().includes(q));
@@ -695,7 +800,10 @@ function paintPick(){
   : `<div class="empty" style="padding:30px"><b>📚</b>${q ? '찾는 책이 없어요.' : '아직 책장이 비어 있어요.<br>아래 <b>＋ 새 책 넣기</b>로 시작해요.'}</div>`;
 }
 $('#enPickQ').addEventListener('input', paintPick);
+let pickSeries = 'all';
 $('#enPickList').addEventListener('click', e=>{
+  const sr = e.target.closest('[data-ser]');
+  if(sr){ pickSeries = sr.dataset.ser; return paintPick(); }
   const ve = e.target.closest('[data-ve]');
   if(ve){ closeM('enPickModal'); return openVid(ve.dataset.ve); }
   const pv = e.target.closest('[data-pv]');
@@ -738,6 +846,7 @@ function openVid(id){
   $('#enVDel').style.display = v ? '' : 'none';
   $('#enVName').value = v ? v.title : '';
   $('#enVYt').value   = v ? v.yt : '';
+  $('#enVLimit').value = v && v.limit ? v.limit : '';
   paintVidPrev();
   openM('enVidModal');
   if(!v) setTimeout(()=>$('#enVName').focus(), 80);
@@ -778,11 +887,12 @@ $('#enVSave').addEventListener('click', ()=>{
     pickSrc = 'video'; return openPick('watch');
   }
   const title = $('#enVName').value.trim(), yt = $('#enVYt').value.trim();
+  const limit = Math.max(0, Math.round(Number($('#enVLimit').value) || 0)) || null;
   if(!title) return toast('이름을 적어 주세요');
   if(!parseYT(yt)) return toast('유튜브 주소를 넣어 주세요');
   const v = vidId ? vidOf(vidId) : null;
-  if(v) Object.assign(v, {title, yt, updatedAt:Date.now()});
-  else E().videos.push({id:uid(), title, yt, views:0, lastAt:0, addedAt:Date.now(), updatedAt:Date.now()});
+  if(v) Object.assign(v, {title, yt, limit, updatedAt:Date.now()});
+  else E().videos.push({id:uid(), title, yt, limit, views:0, lastAt:0, addedAt:Date.now(), updatedAt:Date.now()});
   save(); closeM('enVidModal');
   toast(v ? '고쳤어요' : `📺 "${title}"을 넣었어요`);
   pickSrc = 'video'; openPick('watch');
@@ -894,6 +1004,8 @@ function makePlayer(resume){
     const pv = {playsinline:1, rel:0, iv_load_policy:3, controls:0, disablekb:1, fs:0};
     if(y.list){ pv.list = y.list; if(!y.v) pv.listType = 'playlist'; }
     if(resume && !y.list) pv.start = Math.floor(resume.t);
+    /* 몇 분만 보기 — 그 지점에서 영상이 끝난 것으로 처리돼 바로 닫힙니다 */
+    if(P.item.limit && !y.list) pv.end = Math.round(P.item.limit * 60);
     const opts = {host:'https://www.youtube-nocookie.com', width:'100%', height:'100%', playerVars:pv,
                   events:{onReady:onYTReady, onStateChange:onYTState, onError:onYTError}};
     if(y.v) opts.videoId = y.v;
@@ -1129,11 +1241,15 @@ function paintShelfGrid(){
 function openPacks(){
   const e = E();
   $('#enPackList').innerHTML = PACKS.map(pk=>{
-    const have = pk.books.filter(([t])=>e.books.some(b=>b.title.toLowerCase() === t.toLowerCase())).length;
+    const books = pk.books || [], vids = pk.videos || [];
+    const have = books.filter(([t])=>e.books.some(b=>b.title.toLowerCase() === t.toLowerCase())).length
+               + vids.filter(([t])=>e.videos.some(v=>v.title.toLowerCase() === t.toLowerCase())).length;
+    const what = [books.length ? `책 ${books.length}권` : '', vids.length ? `영상 ${vids.length}편` : '',
+                  pk.level ? `레벨 ${pk.level}` : ''].filter(Boolean).join(' · ');
     return `<div class="pcard" style="margin:0 0 10px">
       <h4>${esc(pk.name)}</h4>
-      <p class="hint" style="margin:0 0 12px">책 ${pk.books.length}권 · 애니메이션 ${pk.videos.length}편 · 레벨 ${pk.level}<br>${esc(pk.note)}
-        ${have ? `<br>이미 ${have}권은 책장에 있어요.` : ''}</p>
+      <p class="hint" style="margin:0 0 12px">${what}<br>${esc(pk.note)}
+        ${have ? `<br>이미 ${have}개는 들어 있어요.` : ''}</p>
       <button class="btn accent wide" data-pack="${pk.id}">불러오기</button>
     </div>`;
   }).join('');
@@ -1146,15 +1262,16 @@ $('#enPackList').addEventListener('click', e=>{
   const hb = new Set(en.books.map(x=>x.title.toLowerCase()));
   const hv = new Set(en.videos.map(x=>x.title.toLowerCase()));
   let nb = 0, nv = 0;
-  pk.books.forEach(([title, id])=>{
+  (pk.books || []).forEach(([title, id])=>{
     if(hb.has(title.toLowerCase())) return;
     en.books.push({id:uid(), title, level:pk.level, series:pk.series, yt:`https://youtu.be/${id}`, where:'home', due:'',
                    react:'', reads:0, listens:0, hears:0, lastAt:0, addedAt:now, updatedAt:now});
     nb++;
   });
-  pk.videos.forEach(([title, id])=>{
+  (pk.videos || []).forEach(([title, id, limit])=>{
     if(hv.has(title.toLowerCase())) return;
-    en.videos.push({id:uid(), title, yt:`https://youtu.be/${id}`, views:0, lastAt:0, addedAt:now, updatedAt:now});
+    en.videos.push({id:uid(), title, yt:`https://youtu.be/${id}`, series:pk.vseries || pk.series || '',
+                    limit:limit || pk.limit || null, views:0, lastAt:0, addedAt:now, updatedAt:now});
     nv++;
   });
   save(); closeM('enPackModal'); refresh();
