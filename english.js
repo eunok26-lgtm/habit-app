@@ -410,6 +410,7 @@ document.body.insertAdjacentHTML('beforeend', `
     <div class="en-pctl" id="enPCtl">
       <button class="btn ghost" id="enPBack">⏪ 10초 뒤로</button>
       <button class="btn ghost" id="enPAudio">🎧 소리만 듣기</button>
+      <button class="btn ghost" id="enPBig">⛶ 크게 보기</button>
     </div>
     <div class="row">
       <button class="btn ghost" id="enPClose">닫기</button>
@@ -1138,6 +1139,8 @@ function paintPlayer(){
   $('#enPDone').textContent = P.marked ? '닫기' : '다 들었어요 ✓';
   $('#enPToggle').textContent = P.parked || !live ? `▶ 계속 ${watch ? '보기' : '듣기'}` : '⏸ 잠깐 멈춤';
   $('#enPAudio').textContent  = E().audioOnly ? '📺 화면 보기' : '🎧 소리만 듣기';
+  $('#enPBig').textContent    = E().bigPlayer ? '↙ 작게 보기' : '⛶ 크게 보기';
+  $('#enPlayModal .en-psheet').classList.toggle('big', !!E().bigPlayer);
   $('#enPBack').disabled = !P.player || P.parked;
 }
 
@@ -1156,6 +1159,12 @@ $('#enPDone').addEventListener('click', ()=>{ markDone(false); closePlayer(); })
 $('#enPBack').addEventListener('click', ()=>{
   if(!P || !P.player || !P.player.getCurrentTime) return;
   try{ P.player.seekTo(Math.max(0, P.player.getCurrentTime() - 10), true); }catch(e){}
+});
+/* 크게 보기 — 한 번 켜면 다음에도 크게 열립니다 */
+$('#enPBig').addEventListener('click', ()=>{
+  const e = E();
+  e.bigPlayer = !e.bigPlayer; save();
+  paintPlayer();
 });
 $('#enPAudio').addEventListener('click', ()=>{
   const e = E();

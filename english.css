@@ -131,7 +131,18 @@
 .en-prow .go{font-size:22px; flex:0 0 auto}
 
 /* 집중듣기 플레이어 */
-.en-psheet{max-width:min(1100px, calc((100vh - 200px) * 16 / 9)); padding:18px 18px 20px}
+.sheet.en-psheet{   /* .sheet 의 560px 보다 우선하도록 두 클래스로 */
+  max-width:min(640px, calc((100vh - 290px) * 16 / 9 + 36px)); padding:18px 18px 20px;
+}
+/* 크게 보기 — 영상이 화면 높이의 2/3 정도 */
+.sheet.en-psheet.big{
+  max-width:none; max-height:98vh;
+  width:min(96vw, calc(min(67vh, 100vh - 250px) * 16 / 9 + 36px));
+}
+.en-psheet.big .en-ptitle{font-size:17px; margin-bottom:10px}
+.en-psheet.big .en-pinfo{margin-top:10px}
+.en-psheet.big .en-pctl{margin-top:10px}
+.en-psheet.big .row{margin-top:10px}
 #enPlayModal{background:rgba(20,16,12,.86); padding:12px}
 .en-ptitle{font-size:21px; font-weight:800; margin:0 0 14px; display:flex; align-items:center; gap:9px; flex-wrap:wrap}
 .en-video{position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:16px; overflow:hidden}
