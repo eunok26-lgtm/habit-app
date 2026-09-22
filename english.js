@@ -5,7 +5,9 @@
    기록은 db.english 에 들어가서 습관 앱 기록과 함께 저장됩니다.
 
    db.english = {
-     level:'J2', goals:{listen,focus,read,korean}(분),
+     level:'J2',                          ← 책 레벨 (새 책의 기본값)
+     stage:'a6', startDate:'YYYY-MM-DD',  ← 잠수네 단계 · 엄마표 영어 시작일
+     over:{카테고리:분}, koreanGoal:30,     ← 단계 기본 목표 대신 쓸 값 · 한글책 목표
      books:[{id,title,level,series,yt,where,due,react,reads,listens,hears,lastAt,addedAt,updatedAt}],
             (listens = 집중듣기 횟수, hears = 흘려듣기 횟수, reads = 읽기 횟수)
      log:{ 'YYYY-MM-DD': {listen,focus,read,korean}(초) + books:[{id,title,t:'focus'|'listen'|'read',at}] },
@@ -19,13 +21,77 @@
 const CATS = [
   {id:'listen', name:'흘려듣기',   emo:'🎧', desc:'영상·오디오 틀어두기',   c:'#8ecae6'},
   {id:'focus',  name:'집중듣기',   emo:'👂', desc:'들으면서 글자 따라가기', c:'#ff9f43'},
-  {id:'read',   name:'영어책 읽기', emo:'📖', desc:'쉬운 책을 소리 내어',   c:'#2ec27e'},
+  {id:'read',   name:'책읽기',     emo:'📖', desc:'소리 내어 읽기',        c:'#2ec27e'},
+  {id:'extra',  name:'학습서',     emo:'📘', desc:'선택사항',             c:'#f6a6c1'},
+  {id:'output', name:'말하기·쓰기', emo:'✏️', desc:'말해 보고 써 보기',     c:'#ffc49b'},
   {id:'korean', name:'한글책',     emo:'📚', desc:'한글책도 꼭 함께',      c:'#b8a4e3'}
 ];
 const CAT = Object.fromEntries(CATS.map(c=>[c.id, c]));
 const LEVELS = ['J1','J2','J3','J4','J5','J6','J7','J8','J9'];
-/* J2 무렵(적응~발전 과정)에 맞춘 시작값 — 설정에서 바꿀 수 있습니다 */
-const DEFAULT_GOALS = {listen:60, focus:20, read:20, korean:30};
+
+/* ==========================================================
+   잠수네 단계표 — 「잠수네 영어학습 전체 흐름」 표를 옮긴 것
+   분 단위. [최소, 최대] — 범위가 있으면 최소를 채우면 목표 달성.
+   [0] 은 시간이 정해지지 않은 것(기록만), 없는 칸은 그 단계에서 하지 않는 것.
+   m 은 시작 후 몇 개월째에 해당하는지 (시작일로 단계를 추천할 때 씁니다)
+   ========================================================== */
+const GROUPS = {
+  '적응':{emo:'🌱', name:'적응과정'}, '발전':{emo:'🌿', name:'발전과정'},
+  '심화':{emo:'🌳', name:'심화과정'}, '고수':{emo:'🏆', name:'고수과정'}
+};
+const STAGES = [
+  {id:'a1',  g:'적응', at:'D+1개월',     m:1,  listen:[90]},
+  {id:'a2',  g:'적응', at:'D+2개월',     m:2,  listen:[90], focus:[5,15]},
+  {id:'a3',  g:'적응', at:'D+3개월',     m:3,  listen:[90], focus:[15,30], read:[10,20], readName:'집중듣기한 쉬운 책 읽기'},
+  {id:'a6',  g:'적응', at:'D+6개월',     m:6,  listen:[90], focus:[30], read:[30], readName:'쉬운 책 읽기', extra:[30], extraName:'파닉스 학습서'},
+  {id:'a12', g:'적응', at:'D+1년',       m:12, listen:[90], focus:[30], read:[30], readName:'쉬운 책 읽기', extra:[30], extraName:'파닉스 학습서'},
+  {id:'b18', g:'발전', at:'D+1년 6개월', m:18, listen:[60], focus:[30], read:[60], readName:'쉬운 책 읽기', extra:[0],  extraName:'어휘 학습서'},
+  {id:'b24', g:'발전', at:'D+2년',       m:24, listen:[60], focus:[30], read:[60], readName:'책읽기',     extra:[30], extraName:'어휘·독해 학습서'},
+  {id:'c30', g:'심화', at:'D+2년 6개월', m:30, listen:[60], focus:[30], read:[90], readName:'책읽기',     extra:[30], extraName:'어휘·독해 학습서', output:[0]},
+  {id:'c36', g:'심화', at:'D+3~4년',     m:36, listen:[60], focus:[30,60], read:[90], readName:'책읽기',  extra:[30], extraName:'어휘·독해·문법 학습서', output:[0]},
+  {id:'d48', g:'고수', at:'D+3~4년 이후', m:48, listen:[0], focus:[0], read:[0], readName:'책읽기',        extra:[0],  extraName:'어휘·독해·문법 학습서', output:[0], free:true}
+];
+const STAGE_KEYS = ['listen','focus','read','extra','output'];
+function stage(){ return STAGES.find(x=>x.id === E().stage) || STAGES[3]; }
+function stageLabel(st){ st = st || stage(); return `${GROUPS[st.g].name} · ${st.at}`; }
+function catName(c, st){
+  st = st || stage();
+  if(c.id === 'read')  return st.readName  || c.name;
+  if(c.id === 'extra') return st.extraName || c.name;
+  return c.name;
+}
+/* 이 카테고리의 오늘 목표 [최소, 최대] (분). 이 단계에서 하지 않는 것이면 null */
+function goalOf(cat){
+  const e = E();
+  if(cat === 'korean') return [e.koreanGoal == null ? 30 : e.koreanGoal];
+  const g = stage()[cat];
+  if(!g) return null;
+  const o = e.over && e.over[cat];
+  return o != null ? [o] : g;
+}
+function goalText(g){
+  if(!g) return '—';
+  if(!g[0]) return stage().free ? '자유롭게' : '시간 자유';
+  return g[1] ? `${g[0]}~${g[1]}분` : fmtMinN(g[0]);
+}
+function fmtMinN(m){ return m < 60 ? m + '분' : Math.floor(m/60) + '시간' + (m%60 ? ' ' + m%60 + '분' : ''); }
+/* 오늘 화면에 보일 칸 — 이 단계에서 하는 것 + (단계를 바꿨어도) 오늘 이미 한 것 */
+function activeCats(k){
+  return CATS.filter(c => goalOf(c.id) || secOf(c.id, k || todayKey()) > 0);
+}
+/* 시작일로 보면 지금 어느 단계 시기인지 */
+function monthsSince(d){
+  if(!d) return null;
+  const a = parseKey(d), b = parseKey(todayKey());
+  let m = (b.getFullYear() - a.getFullYear())*12 + (b.getMonth() - a.getMonth());
+  if(b.getDate() < a.getDate()) m--;
+  return Math.max(0, m);
+}
+function stageByMonths(m){
+  let hit = STAGES[0];
+  STAGES.forEach(x=>{ if(m >= x.m) hit = x; });
+  return hit;
+}
 const REACT = [['love','😍 좋아해요'], ['ok','🙂 그냥 그래요'], ['no','🙅 싫어해요']];
 const REACT_EMO = {love:'😍', ok:'🙂', no:'🙅'};
 const MAX_RUN = 3*60*60;     // 스톱워치를 켜 두고 잊어도 3시간까지만 셉니다
@@ -35,7 +101,13 @@ const COVER_COLORS = ['#ffd97d','#8ecae6','#b8a4e3','#f6a6c1','#9fd8a0','#ffc49b
 function E(){
   const e = db.english || (db.english = {});
   e.level = e.level || 'J2';
-  e.goals = e.goals || {...DEFAULT_GOALS};
+  if(!e.stage){
+    /* 처음이거나 예전 버전(목표를 직접 넣던 때) — J2 무렵인 적응과정 D+6개월에서 시작합니다 */
+    e.stage = 'a6';
+    if(e.goals && e.goals.korean != null) e.koreanGoal = e.goals.korean;
+    delete e.goals;
+  }
+  e.over = e.over || {};
   e.books = e.books || [];
   e.log   = e.log   || {};
   e.run   = e.run   || {};
@@ -99,14 +171,14 @@ function stopRun(cat){
 
 /* 목표를 처음 채운 순간에만 알려 줍니다 */
 function checkGoals(){
-  const k = todayKey(), g = E().goals;
-  const withGoal = CATS.filter(c => g[c.id] > 0);
+  const k = todayKey();
+  const withGoal = CATS.filter(c => { const g = goalOf(c.id); return g && g[0] > 0; });
   if(!withGoal.length) return;
   const l = logOf(k);
   l.hit = l.hit || {};
   let fresh = null;
   withGoal.forEach(c=>{
-    if(!l.hit[c.id] && secOf(c.id, k) >= g[c.id]*60){ l.hit[c.id] = 1; fresh = c; }
+    if(!l.hit[c.id] && secOf(c.id, k) >= goalOf(c.id)[0]*60){ l.hit[c.id] = 1; fresh = c; }
   });
   if(!fresh) return;
   save();
@@ -117,7 +189,7 @@ function checkGoals(){
     celebrate();
   }else{
     soundFinish();
-    toast(`${fresh.emo} ${fresh.name} 목표를 채웠어요! 🌟`);
+    toast(`${fresh.emo} ${catName(fresh)} 목표를 채웠어요! 🌟`);
   }
   if(isOpen() && tab === 'today') paintToday();
 }
@@ -330,7 +402,7 @@ const isOpen = () => $('#viewEng') && $('#viewEng').style.display !== 'none';
 function render(){
   $('#viewEng').innerHTML = `
     <div class="en-seg" id="enSeg">
-      ${[['today','오늘'],['shelf','책장'],['stats','기록']]
+      ${[['today','오늘'],['shelf','책장'],['stats','기록'],['road','단계']]
         .map(([id,n])=>`<button data-tab="${id}" class="${tab===id?'on':''}">${n}</button>`).join('')}
     </div>
     <div id="enBody"></div>`;
@@ -339,6 +411,7 @@ function render(){
 function paint(){
   if(tab === 'today') paintToday();
   else if(tab === 'shelf') paintShelf();
+  else if(tab === 'road') paintRoad();
   else paintStats();
 }
 
@@ -356,7 +429,14 @@ function paintToday(){
       }).join(', ')}</div>`
     : '';
 
-  $('#enBody').innerHTML = dueHTML + CATS.map(c=>{
+  const st = stage();
+  const stageHTML = `<button class="en-stage" data-goroad>
+      <span class="e">${GROUPS[st.g].emo}</span>
+      <span class="m"><b>${GROUPS[st.g].name}</b> · ${st.at}</span>
+      <span class="go">단계 보기 ›</span>
+    </button>`;
+
+  $('#enBody').innerHTML = stageHTML + dueHTML + activeCats(k).map(c=>{
     const chips = got.map((b,i)=>({...b, i})).filter(b => b.t === c.id);
     const vids = ((l && l.vids) || []).map((v,i)=>({...v, i}));
     const sub = c.id === 'listen' ? `
@@ -380,7 +460,7 @@ function paintToday(){
         <div class="en-row">
           <span class="en-ico">${c.emo}</span>
           <div class="en-main">
-            <div class="en-name">${c.name} <span class="en-desc">${c.desc}</span></div>
+            <div class="en-name">${catName(c)} <span class="en-desc">${c.desc}</span></div>
             <div class="en-bar"><i></i></div>
             <div class="en-min"></div>
           </div>
@@ -389,7 +469,7 @@ function paintToday(){
         ${sub}
       </div>`;
   }).join('') + `
-    <p class="en-foot">지금 레벨 <b>${esc(e.level)}</b> · 목표 시간은 ⚙️ 설정에서 바꿀 수 있어요.<br>
+    <p class="en-foot">책 레벨 <b>${esc(e.level)}</b> · 단계와 목표 시간은 ⚙️ 설정에서 바꿀 수 있어요.<br>
     다 못 채워도 괜찮아요. 매일 조금씩이 제일 중요해요.</p>`;
 
   updateCards();
@@ -397,17 +477,18 @@ function paintToday(){
 
 /* 1초마다 숫자만 바꿉니다 (전체를 다시 그리지 않게) */
 function updateCards(){
-  const k = todayKey(), g = E().goals;
+  const k = todayKey();
   CATS.forEach(c=>{
     const card = document.querySelector(`.en-card[data-cat="${c.id}"]`); if(!card) return;
-    const s = secOf(c.id, k), goal = (g[c.id] || 0) * 60;
+    const g = goalOf(c.id) || [0];
+    const s = secOf(c.id, k), goal = g[0] * 60, full = (g[1] || g[0]) * 60;
     const hit = goal > 0 && s >= goal;
     card.classList.toggle('hit', hit);
     card.querySelector('.en-bar').style.display = goal ? '' : 'none';
-    card.querySelector('.en-bar i').style.width = (goal ? Math.min(100, s/goal*100) : 0) + '%';
+    card.querySelector('.en-bar i').style.width = (full ? Math.min(100, s/full*100) : 0) + '%';
     card.querySelector('.en-min').innerHTML = hit
       ? `<b>${fmtMin(s)}</b> · 목표를 채웠어요! 🌟`
-      : `<b>${fmtMin(s)}</b>${goal ? ` / ${g[c.id]}분` : ''}`;
+      : `<b>${fmtMin(s)}</b>${goal ? ` / ${goalText(g)}` : ` · ${goalText(goalOf(c.id))}`}`;
     const btn = card.querySelector('.en-go');
     const run = E().run[c.id];
     btn.classList.toggle('run', !!run);
@@ -417,6 +498,12 @@ function updateCards(){
 
 $('#viewEng').addEventListener('click', e=>{
   const t = e.target;
+
+  if(t.closest('[data-goroad]')){
+    tab = 'road';
+    document.querySelectorAll('#enSeg button').forEach(b=>b.classList.toggle('on', b.dataset.tab === 'road'));
+    return paint();
+  }
 
   const sg = t.closest('#enSeg [data-tab]');
   if(sg){
@@ -477,7 +564,7 @@ $('#viewEng').addEventListener('input', e=>{
 let addCat = null;
 function openAdd(cat){
   addCat = cat;
-  $('#enAddTitle').textContent = `${CAT[cat].emo} ${CAT[cat].name} 시간 넣기`;
+  $('#enAddTitle').textContent = `${CAT[cat].emo} ${catName(CAT[cat])} 시간 넣기`;
   $('#enAddSum').textContent = fmtMin(secOf(cat, todayKey()));
   openM('enAddModal');
 }
@@ -1139,7 +1226,7 @@ $('#enFDel').addEventListener('click', ()=>{
    ========================================================== */
 function paintStats(){
   const e = E(), L = e.log, tk = todayKey();
-  const tot = {listen:0, focus:0, read:0, korean:0};
+  const tot = Object.fromEntries(CATS.map(c=>[c.id, 0]));
   let reads = 0, listens = 0, hears = 0, days = 0, views = 0;
   const seen = new Set(), cnt = {};
   Object.keys(L).forEach(k=>{
@@ -1163,7 +1250,7 @@ function paintStats(){
     const v = Object.fromEntries(CATS.map(c=>[c.id, secOf(c.id, k)]));
     return {k, v, sum: CATS.reduce((s,c)=>s + v[c.id], 0)};
   });
-  const goalSum = CATS.reduce((s,c)=>s + (e.goals[c.id]||0)*60, 0) || 3600;
+  const goalSum = CATS.reduce((s,c)=>{ const g = goalOf(c.id); return s + (g ? g[0] : 0)*60; }, 0) || 3600;
   const scale = Math.max(goalSum, ...week.map(d=>d.sum));
 
   /* 최근 5주 달력 */
@@ -1198,7 +1285,7 @@ function paintStats(){
 
     <div class="en-box">
       <h4>📅 이번 주</h4>
-      <div class="en-legend">${CATS.map(c=>`<span><i style="background:${c.c}"></i>${c.name}</span>`).join('')}</div>
+      <div class="en-legend">${CATS.filter(c=>goalOf(c.id) || tot[c.id]).map(c=>`<span><i style="background:${c.c}"></i>${c.name}</span>`).join('')}</div>
       ${week.map((d,i)=>`
         <div class="en-wk">
           <span class="d ${d.k===tk?'today':''}">${DAYS[i]}</span>
@@ -1227,23 +1314,82 @@ function paintStats(){
     </div>` : ''}`;
 }
 
+/* ==========================================================
+   단계 — 잠수네 전체 흐름을 한눈에, 지금 단계 표시
+   ========================================================== */
+function paintRoad(){
+  const e = E(), cur = stage();
+  const m = monthsSince(e.startDate);
+  const sug = m == null ? null : stageByMonths(m);
+  const ci = STAGES.indexOf(cur);
+  const cell = (st, key, emo, name) => {
+    const g = st[key];
+    if(!g) return '';
+    const label = key === 'read' ? (st.readName || name) : key === 'extra' ? (st.extraName || name) : name;
+    return `<span class="en-rc"><i>${emo}</i>${esc(label)} <b>${!g[0] ? (st.free ? '자유롭게' : '') : g[1] ? `${g[0]}~${g[1]}분` : fmtMinN(g[0])}</b></span>`;
+  };
+  let lastG = null;
+  $('#enBody').innerHTML = `
+    <div class="en-box">
+      <h4>🗺 잠수네 영어 전체 흐름</h4>
+      <p class="hint" style="margin:0">
+        시간은 하루 기준이에요. 지금 단계: <b>${stageLabel(cur)}</b>
+        ${m != null ? `<br>시작한 지 <b>${m}개월</b> — 표로 보면 <b>${stageLabel(sug)}</b> 시기예요.` : '<br>⚙️ 설정에서 시작일을 넣으면 시기에 맞는 단계를 알려 줘요.'}
+        <br>단계는 ⚙️ 설정에서 바꿔요. 아이 속도에 맞추면 돼요.
+      </p>
+    </div>
+    ${STAGES.map((st,i)=>{
+      const head = st.g !== lastG ? `<div class="en-rg">${GROUPS[st.g].emo} ${GROUPS[st.g].name}</div>` : '';
+      lastG = st.g;
+      return head + `
+        <div class="en-road ${i === ci ? 'cur' : i < ci ? 'past' : ''}">
+          <div class="en-rh">
+            <b>${st.at}</b>
+            ${i === ci ? '<span class="en-rtag">지금 여기</span>' : ''}
+            ${sug && sug.id === st.id && i !== ci ? '<span class="en-rtag sug">시기상 지금</span>' : ''}
+          </div>
+          <div class="en-rcs">
+            ${cell(st,'listen','🎧','흘려듣기')}${cell(st,'focus','👂','집중듣기')}${cell(st,'read','📖','책읽기')}
+            ${cell(st,'extra','📘','학습서')}${st.output ? '<span class="en-rc"><i>✏️</i>말하기·쓰기</span>' : ''}
+          </div>
+        </div>`;
+    }).join('')}
+    <p class="en-foot">한글책은 단계와 상관없이 매일 함께 해요.</p>`;
+}
+
 function refresh(){ if(isOpen()) paint(); }
 
 /* ==========================================================
    부모 모드 카드 — index.html 의 renderParent() 가 끼워 넣습니다
    ========================================================== */
 function parentCard(){
-  const e = E();
+  const e = E(), st = stage();
+  const m = monthsSince(e.startDate), sug = m == null ? null : stageByMonths(m);
+  const sugHTML = sug ? `<p class="hint" style="margin:8px 0 0">시작한 지 <b>${m}개월</b> — 표로 보면 <b>${stageLabel(sug)}</b> 시기예요.
+      ${sug.id !== st.id ? `<button class="btn ghost" id="enUseSug" style="margin-top:8px; width:100%">이 단계로 바꾸기</button>` : ''}</p>` : '';
   return `
     <div class="pcard">
       <h4>🔤 엄마표 영어</h4>
-      <label class="fl" style="margin-top:4px">지금 레벨 <span style="font-weight:600">— 새 책을 넣을 때 기본값이 돼요</span></label>
-      <select id="enLevel">${LEVELS.map(l=>`<option ${e.level===l?'selected':''}>${l}</option>`).join('')}</select>
-      <label class="fl">하루 목표 (분) <span style="font-weight:600">— 0 으로 두면 목표 없이 기록만 해요</span></label>
+      <label class="fl" style="margin-top:4px">잠수네 단계 <span style="font-weight:600">— 바꾸면 하루 목표가 그 단계 기준으로 바뀌어요</span></label>
+      <select id="enStage">${Object.keys(GROUPS).map(g=>`<optgroup label="${GROUPS[g].emo} ${GROUPS[g].name}">
+        ${STAGES.filter(x=>x.g===g).map(x=>`<option value="${x.id}" ${x.id===st.id?'selected':''}>${GROUPS[g].name} · ${x.at}</option>`).join('')}
+      </optgroup>`).join('')}</select>
+      <label class="fl">엄마표 영어 시작일 <span style="font-weight:600">— 넣으면 시기에 맞는 단계를 알려 줘요</span></label>
+      <input type="date" id="enStart" value="${esc(e.startDate||'')}">
+      ${sugHTML}
+      <label class="fl">이 단계 하루 목표 (분) <span style="font-weight:600">— 비워 두면 단계 기본값</span></label>
       <div class="en-goals">
-        ${CATS.map(c=>`<label>${c.emo} ${c.name}
-          <input type="number" min="0" max="300" step="5" data-goal="${c.id}" value="${e.goals[c.id]||0}"></label>`).join('')}
+        ${STAGE_KEYS.filter(k=>st[k]).map(k=>{
+          const c = CAT[k], g = st[k];
+          return `<label>${c.emo} ${esc(catName(c, st))}
+            <input type="number" min="0" max="300" step="5" data-goal="${k}" placeholder="기본 ${g[0] ? (g[1] ? g[0]+'~'+g[1] : g[0]) : '자유'}"
+                   value="${e.over[k] != null ? e.over[k] : ''}"></label>`;
+        }).join('')}
+        <label>📚 한글책
+          <input type="number" min="0" max="300" step="5" id="enKGoal" value="${e.koreanGoal == null ? 30 : e.koreanGoal}"></label>
       </div>
+      <label class="fl">책 레벨 <span style="font-weight:600">— 새 책을 넣을 때 기본값이 돼요</span></label>
+      <select id="enLevel">${LEVELS.map(l=>`<option ${e.level===l?'selected':''}>${l}</option>`).join('')}</select>
       <div class="row" style="margin-top:14px"><button class="btn accent" id="enSaveCfg">저장</button></div>
       <p class="hint">
         책 ${e.books.length}권 · 기록 ${Object.keys(e.log).length}일.
@@ -1261,12 +1407,22 @@ $('#viewParent').addEventListener('click', e=>{
   const t = e.target;
   if(t.id === 'enSaveCfg'){
     const en = E();
+    const clamp = v => Math.max(0, Math.min(300, Math.round(Number(v) || 0)));
     en.level = $('#enLevel').value;
+    en.startDate = $('#enStart').value || '';
+    en.over = {};
     document.querySelectorAll('[data-goal]').forEach(i=>{
-      en.goals[i.dataset.goal] = Math.max(0, Math.min(300, Math.round(Number(i.value) || 0)));
+      if(i.value.trim() !== '') en.over[i.dataset.goal] = clamp(i.value);
     });
-    save();
+    en.koreanGoal = clamp($('#enKGoal').value);
+    save(); renderParent();
     return toast('영어 설정을 저장했어요');
+  }
+  if(t.id === 'enUseSug'){
+    const en = E(), m = monthsSince(en.startDate);
+    if(m == null) return;
+    setStage(stageByMonths(m).id);
+    return;
   }
   if(t.id === 'enExport'){
     const blob = new Blob([JSON.stringify({kind:'english-backup', savedAt:new Date().toISOString(), english:E()}, null, 1)],
@@ -1279,6 +1435,18 @@ $('#viewParent').addEventListener('click', e=>{
     return;
   }
   if(t.id === 'enImport') return $('#enImportFile').click();
+});
+/* 단계를 바꾸면 그 단계의 기본 목표로 돌아갑니다 (예전 단계에서 고친 목표는 비움) */
+function setStage(id){
+  const en = E();
+  if(en.stage === id) return;
+  en.stage = id; en.over = {};
+  save(); renderParent();
+  toast(`${stageLabel()} 단계로 바꿨어요`);
+}
+$('#viewParent').addEventListener('change', e=>{
+  if(e.target.id === 'enStage') setStage(e.target.value);
+  if(e.target.id === 'enStart'){ E().startDate = e.target.value || ''; save(); renderParent(); }
 });
 $('#viewParent').addEventListener('change', async e=>{
   if(e.target.id !== 'enImportFile') return;

@@ -266,3 +266,30 @@ div.en-prow{cursor:pointer}
 .en-pctl{display:flex; gap:10px; margin-top:14px}
 .en-pctl .btn{flex:1; padding:12px 0; font-size:15px}
 .en-pctl .btn:disabled{opacity:.4}
+
+/* 지금 단계 (오늘 화면 맨 위) */
+.en-stage{
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  background:#fffaf2; border:2px solid #ffe0b8; border-radius:16px; padding:11px 15px; margin-bottom:14px;
+}
+.en-stage:active{transform:scale(.98)}
+.en-stage .e{font-size:24px}
+.en-stage .m{flex:1; font-size:15px; font-weight:700; color:#8a5a12}
+.en-stage .go{font-size:13px; font-weight:800; color:var(--accent)}
+
+/* 단계 화면 */
+.en-rg{font-size:16px; font-weight:800; margin:20px 0 10px 4px}
+.en-road{
+  background:var(--card); border:2px solid var(--line); border-radius:18px;
+  padding:13px 15px; margin-bottom:9px; box-shadow:var(--shadow);
+}
+.en-road.past{opacity:.55}
+.en-road.cur{border-color:var(--accent); background:#fffaf2}
+.en-rh{display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:16px}
+.en-rtag{font-size:11.5px; font-weight:800; color:#fff; background:var(--accent); border-radius:999px; padding:3px 9px}
+.en-rtag.sug{background:#8ecae6}
+.en-rcs{display:flex; flex-wrap:wrap; gap:7px}
+.en-rc{font-size:13.5px; font-weight:700; background:#f7f1e8; border-radius:10px; padding:6px 10px; color:var(--ink)}
+.en-rc i{font-style:normal; margin-right:4px}
+.en-rc b{color:#c47f1a; margin-left:2px}
+.en-goals label input::placeholder{color:#b8ab9b; font-weight:600}
