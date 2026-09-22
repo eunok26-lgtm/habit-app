@@ -134,15 +134,38 @@
 .sheet.en-psheet{   /* .sheet 의 560px 보다 우선하도록 두 클래스로 */
   max-width:min(640px, calc((100vh - 290px) * 16 / 9 + 36px)); padding:18px 18px 20px;
 }
-/* 크게 보기 — 영상이 화면 높이의 2/3 정도 */
-.sheet.en-psheet.big{
-  max-width:none; max-height:98vh;
-  width:min(96vw, calc(min(67vh, 100vh - 250px) * 16 / 9 + 36px));
+/* 꽉 차게 보기 — 화면 전체를 검게 두고 16:9 영상을 들어가는 한 가장 크게.
+   제목·로고 잘라내기(--band)와 터치 막기는 그대로입니다. */
+#enPlayModal.full{padding:0; background:#000; backdrop-filter:none}
+#enPlayModal.full .sheet.en-psheet{
+  position:fixed; inset:0; width:auto; height:auto; max-width:none; max-height:none;
+  border-radius:0; padding:0; background:#000; box-shadow:none; overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
 }
-.en-psheet.big .en-ptitle{font-size:17px; margin-bottom:10px}
-.en-psheet.big .en-pinfo{margin-top:10px}
-.en-psheet.big .en-pctl{margin-top:10px}
-.en-psheet.big .row{margin-top:10px}
+#enPlayModal.full #enPVid{
+  flex:0 0 auto; width:min(100vw, calc(100vh * 16 / 9)); max-height:100vh; border-radius:0;
+  --band:96px;                         /* 큰 화면에서는 유튜브 제목 줄도 커져서 조금 더 넉넉히 */
+}
+/* 버튼 줄은 영상 위에 겹쳐 두고, 평소엔 숨겼다가 화면을 톡 치면 나타납니다 */
+#enPlayModal.full .en-ptop, #enPlayModal.full .en-pbot{
+  position:absolute; left:0; right:0; z-index:5; padding:16px 20px;
+  opacity:0; pointer-events:none; transition:opacity .25s ease;
+}
+#enPlayModal.full.show .en-ptop, #enPlayModal.full.show .en-pbot{opacity:1; pointer-events:auto}
+#enPlayModal.full .en-ptop{top:0; background:linear-gradient(rgba(0,0,0,.72), transparent)}
+#enPlayModal.full .en-pbot{
+  bottom:0; padding-bottom:calc(16px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent, rgba(0,0,0,.8) 35%);
+}
+#enPlayModal.full .en-ptitle{color:#fff; margin:0; font-size:19px}
+#enPlayModal.full .en-pinfo{color:rgba(255,255,255,.75); margin-top:0}
+#enPlayModal.full .en-pinfo b{color:#fff}
+#enPlayModal.full .en-pinfo .live{color:#8ecae6}
+#enPlayModal.full .en-pctl, #enPlayModal.full .row{max-width:760px; margin-left:auto; margin-right:auto}
+#enPlayModal.full .en-pctl{margin-top:12px}
+#enPlayModal.full .row{margin-top:10px}
+#enPlayModal.full .btn.ghost{color:#fff; border-color:rgba(255,255,255,.35); background:rgba(255,255,255,.12)}
+#enPlayModal.full .btn:not(.ghost):not(.accent){background:#fff; color:var(--ink)}
 #enPlayModal{background:rgba(20,16,12,.86); padding:12px}
 .en-ptitle{font-size:21px; font-weight:800; margin:0 0 14px; display:flex; align-items:center; gap:9px; flex-wrap:wrap}
 .en-video{position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:16px; overflow:hidden}

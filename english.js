@@ -404,18 +404,20 @@ document.body.insertAdjacentHTML('beforeend', `
 
 <div class="modal" id="enPlayModal">
   <div class="sheet en-psheet">
-    <div class="en-ptitle" id="enPTitle"></div>
+    <div class="en-ptop"><div class="en-ptitle" id="enPTitle"></div></div>
     <div id="enPVid"></div>
-    <div class="en-pinfo" id="enPInfo"></div>
-    <div class="en-pctl" id="enPCtl">
-      <button class="btn ghost" id="enPBack">⏪ 10초 뒤로</button>
-      <button class="btn ghost" id="enPAudio">🎧 소리만 듣기</button>
-      <button class="btn ghost" id="enPBig">⛶ 크게 보기</button>
-    </div>
-    <div class="row">
-      <button class="btn ghost" id="enPClose">닫기</button>
-      <button class="btn" id="enPToggle">⏸ 잠깐 멈춤</button>
-      <button class="btn accent" id="enPDone">다 들었어요 ✓</button>
+    <div class="en-pbot">
+      <div class="en-pinfo" id="enPInfo"></div>
+      <div class="en-pctl" id="enPCtl">
+        <button class="btn ghost" id="enPBack">⏪ 10초 뒤로</button>
+        <button class="btn ghost" id="enPAudio">🎧 소리만 듣기</button>
+        <button class="btn ghost" id="enPBig">⛶ 꽉 차게 보기</button>
+      </div>
+      <div class="row">
+        <button class="btn ghost" id="enPClose">닫기</button>
+        <button class="btn" id="enPToggle">⏸ 잠깐 멈춤</button>
+        <button class="btn accent" id="enPDone">다 들었어요 ✓</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1071,6 +1073,7 @@ function onYTState(ev){
   clearTimeout(P.parkT);
   if(ev.data === S.PLAYING){
     P.started = true; if(!P.since) P.since = Date.now();
+    showCtl();                                  // 재생이 시작되면 잠시 뒤 버튼이 사라집니다
     $('#enPVid').classList.add('started');     // 이제부터 막을 덮습니다 (첫 재생은 아이패드에서 직접 눌러야 해서)
   }
   else if(P.since){
@@ -1139,8 +1142,9 @@ function paintPlayer(){
   $('#enPDone').textContent = P.marked ? '닫기' : '다 들었어요 ✓';
   $('#enPToggle').textContent = P.parked || !live ? `▶ 계속 ${watch ? '보기' : '듣기'}` : '⏸ 잠깐 멈춤';
   $('#enPAudio').textContent  = E().audioOnly ? '📺 화면 보기' : '🎧 소리만 듣기';
-  $('#enPBig').textContent    = E().bigPlayer ? '↙ 작게 보기' : '⛶ 크게 보기';
-  $('#enPlayModal .en-psheet').classList.toggle('big', !!E().bigPlayer);
+  $('#enPBig').textContent    = E().bigPlayer ? '↙ 작게 보기' : '⛶ 꽉 차게 보기';
+  $('#enPlayModal').classList.toggle('full', !!E().bigPlayer);
+  if(!live) $('#enPlayModal').classList.add('show');     // 멈췄거나 시작 전에는 버튼을 계속 보여 줍니다
   $('#enPBack').disabled = !P.player || P.parked;
 }
 
@@ -1160,11 +1164,22 @@ $('#enPBack').addEventListener('click', ()=>{
   if(!P || !P.player || !P.player.getCurrentTime) return;
   try{ P.player.seekTo(Math.max(0, P.player.getCurrentTime() - 10), true); }catch(e){}
 });
-/* 크게 보기 — 한 번 켜면 다음에도 크게 열립니다 */
+/* 꽉 차게 보기 — 한 번 켜면 다음에도 꽉 차게 열립니다.
+   재생 중에는 버튼을 숨기고, 화면을 톡 치면 잠깐 보여 줍니다. */
 $('#enPBig').addEventListener('click', ()=>{
   const e = E();
   e.bigPlayer = !e.bigPlayer; save();
-  paintPlayer();
+  paintPlayer(); showCtl();
+});
+let ctlT = null;
+function showCtl(){
+  const m = $('#enPlayModal');
+  m.classList.add('show');
+  clearTimeout(ctlT);
+  ctlT = setTimeout(()=>{ if(P && P.since) m.classList.remove('show'); }, 3500);
+}
+$('#enPlayModal .en-psheet').addEventListener('click', ()=>{
+  if($('#enPlayModal').classList.contains('full')) showCtl();
 });
 $('#enPAudio').addEventListener('click', ()=>{
   const e = E();
