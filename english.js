@@ -217,6 +217,10 @@ document.body.insertAdjacentHTML('beforeend', `
     <div class="en-ptitle" id="enPTitle"></div>
     <div id="enPVid"></div>
     <div class="en-pinfo" id="enPInfo"></div>
+    <div class="en-pctl" id="enPCtl">
+      <button class="btn ghost" id="enPBack">⏪ 10초 뒤로</button>
+      <button class="btn ghost" id="enPAudio">🎧 소리만 듣기</button>
+    </div>
     <div class="row">
       <button class="btn ghost" id="enPClose">닫기</button>
       <button class="btn" id="enPToggle">⏸ 잠깐 멈춤</button>
@@ -648,6 +652,12 @@ function markRead(b){
    · 영상이 재생되는 동안만 시간을 셉니다.
    · 영상이 끝나면 바로 닫습니다. 유튜브가 끝 화면에 추천 영상을 띄우기 때문입니다.
      (재생목록은 마지막 영상이 끝날 때 닫습니다)
+   · 멈추면 유튜브 화면에 "동영상 더보기"가 뜹니다. 그래서 멈춘 채로 두지 않고
+     플레이어를 치운 뒤 앱의 멈춤 카드를 보여 주고, 계속 보기를 누르면 그 자리부터 다시 엽니다.
+   · 집에서만 쓰는 앱이라 유튜브 제목·로고를 보이지 않게 합니다: 플레이어를 보이는 칸보다
+     위아래로 크게 만들면 영상은 가운데에, 제목 줄과 로고는 위아래 검은 띠에 놓이고, 그 띠를 잘라냅니다.
+     재생이 시작되면 투명한 막을 덮어 영상 화면을 눌러 밖으로 나가지 못하게 하고,
+     조작은 앱 버튼(멈춤 · 10초 뒤로 · 소리만)으로만 합니다.
    ========================================================== */
 let P = null;          // {item, cat, y, player, since, pend, marked}
 let ytReady = null;
@@ -692,22 +702,11 @@ function openPlayer(item, cat){
   P = {item, cat, y, isBook, player:null, since:null, pend:0, marked:false};
 
   $('#enPTitle').innerHTML = esc(item.title) + (isBook ? ` <span class="en-lv">${esc(item.level)}</span>` : '');
-  $('#enPToggle').style.display = watch && y ? '' : 'none';
+  $('#enPToggle').style.display = y ? '' : 'none';
+  $('#enPCtl').style.display    = y ? '' : 'none';
   const box = $('#enPVid');
   if(y){
-    box.className = 'en-video';
-    box.innerHTML = '<div id="enYT"></div>';
-    const me = P;
-    loadYT().then(()=>{
-      if(P !== me) return;
-      /* 흘려듣기는 유튜브 버튼을 끄고 아래 앱 버튼으로만 조작합니다 */
-      const pv = {playsinline:1, rel:0, iv_load_policy:3, controls: watch ? 0 : 1, disablekb: watch ? 1 : 0};
-      if(y.list){ pv.list = y.list; if(!y.v) pv.listType = 'playlist'; }
-      const opts = {host:'https://www.youtube-nocookie.com', width:'100%', height:'100%', playerVars:pv,
-                    events:{onReady:onYTReady, onStateChange:onYTState, onError:onYTError}};
-      if(y.v) opts.videoId = y.v;
-      P.player = new YT.Player('enYT', opts);
-    }).catch(()=> vidMsg('유튜브를 불러오지 못했어요.<br>인터넷 연결을 확인해 주세요.'));
+    makePlayer(null);
   }else{
     box.className = 'en-novid';
     box.innerHTML = `<div class="e">💿</div>
@@ -718,6 +717,55 @@ function openPlayer(item, cat){
   openM('enPlayModal');
 }
 
+/* resume: {t, idx} — 멈췄던 자리에서 다시 열 때 */
+function makePlayer(resume){
+  const box = $('#enPVid');
+  box.className = 'en-video crop' + (E().audioOnly ? ' audio' : '');
+  box.innerHTML = `<div id="enYT"></div><div class="en-shield"></div>
+    <div class="en-audio"><div class="e">🎧</div><div class="t">${esc(P.item.title)}</div><div class="s">소리로 듣는 중</div></div>`;
+  const me = P, y = P.y, watch = P.cat === 'listen';
+  clearTimeout(P.parkT);
+  P.resume = resume; P.started = false; P.parked = false;
+  loadYT().then(()=>{
+    if(P !== me) return;
+    /* 유튜브 버튼은 끄고 아래 앱 버튼으로만 조작합니다 */
+    const pv = {playsinline:1, rel:0, iv_load_policy:3, controls:0, disablekb:1, fs:0};
+    if(y.list){ pv.list = y.list; if(!y.v) pv.listType = 'playlist'; }
+    if(resume && !y.list) pv.start = Math.floor(resume.t);
+    const opts = {host:'https://www.youtube-nocookie.com', width:'100%', height:'100%', playerVars:pv,
+                  events:{onReady:onYTReady, onStateChange:onYTState, onError:onYTError}};
+    if(y.v) opts.videoId = y.v;
+    P.player = new YT.Player('enYT', opts);
+  }).catch(()=> vidMsg('유튜브를 불러오지 못했어요.<br>인터넷 연결을 확인해 주세요.'));
+  paintPlayer();
+}
+
+/* 멈춤 — 유튜브 화면을 치우고 앱 카드로 바꿉니다 */
+function parkPlayer(){
+  if(!P || !P.player || P.parked) return;
+  clearTimeout(P.parkT);
+  let t = 0, idx = null;
+  try{ t = P.player.getCurrentTime() || 0; }catch(e){}
+  try{ if(P.y.list) idx = P.player.getPlaylistIndex(); }catch(e){}
+  if(P.since){ P.pend += (Date.now() - P.since)/1000; P.since = null; }
+  flushPlayer();
+  try{ P.player.destroy(); }catch(e){}
+  P.player = null; P.parked = true;
+  P.resumeAt = {t, idx};
+  const box = $('#enPVid');
+  box.className = 'en-video en-parked';
+  box.innerHTML = `<div class="en-park">
+      <div class="e">⏸</div><div>잠깐 멈췄어요</div>
+      <button class="btn accent" id="enPResume">▶ 계속 ${P.cat === 'listen' ? '보기' : '듣기'}</button>
+    </div>`;
+  paintPlayer();
+}
+function resumePlayer(){
+  if(!P || !P.parked) return;
+  makePlayer(P.resumeAt);
+}
+$('#enPVid').addEventListener('click', e=>{ if(e.target.closest('#enPResume')) resumePlayer(); });
+
 function vidMsg(html){
   if(!P) return;
   const url = ytWatchURL(P.y);
@@ -726,25 +774,36 @@ function vidMsg(html){
   P.player = null;
   if(P.isBook && !P.since) P.since = Date.now();   // 밖에서 듣는 동안도 세어 둡니다
   $('#enPToggle').style.display = 'none';
+  $('#enPCtl').style.display    = 'none';
   paintPlayer();
 }
 
 function onYTReady(){
   if(!P || !P.player) return;
-  const me = P;
-  try{ P.player.playVideo(); }catch(e){}
+  const me = P, r = P.resume;
+  try{
+    if(r && P.y.list){
+      P.player.loadPlaylist({list:P.y.list, listType:'playlist', index:r.idx || 0, startSeconds:r.t});
+    }else P.player.playVideo();
+  }catch(e){}
   /* 아이패드는 한 번 직접 눌러야 재생되는 경우가 있어요 */
   setTimeout(()=>{ if(P === me && !P.started) paintPlayer(); }, 1500);
 }
 
 function onYTState(ev){
-  if(!P) return;
+  if(!P || ev.target !== P.player) return;     // 치운 플레이어에서 늦게 온 신호는 무시
   const S = YT.PlayerState;
-  if(ev.data === S.PLAYING){ P.started = true; if(!P.since) P.since = Date.now(); }
+  clearTimeout(P.parkT);
+  if(ev.data === S.PLAYING){
+    P.started = true; if(!P.since) P.since = Date.now();
+    $('#enPVid').classList.add('started');     // 이제부터 막을 덮습니다 (첫 재생은 아이패드에서 직접 눌러야 해서)
+  }
   else if(P.since){
     P.pend += (Date.now() - P.since)/1000; P.since = null;
     flushPlayer();
   }
+  /* 영상 화면을 눌러 멈춘 경우에도 — 잠깐 넘길 때 생기는 멈춤은 무시하려고 조금 기다립니다 */
+  if(ev.data === S.PAUSED && P.started) P.parkT = setTimeout(parkPlayer, 700);
   if(ev.data === S.ENDED && !moreInList()){
     markDone(true);
     return closePlayer();
@@ -803,11 +862,14 @@ function paintPlayer(){
       : `<span>${P.marked ? `이 책 <b>${it[f]}번</b> 들었어요 ✓` : `이 책 <b>${(it[f]||0) + 1}번째</b> 듣는 중`}</span>${tapHint}`}`;
   $('#enPDone').style.display = P.isBook ? '' : 'none';
   $('#enPDone').textContent = P.marked ? '닫기' : '다 들었어요 ✓';
-  if(watch) $('#enPToggle').textContent = live ? '⏸ 잠깐 멈춤' : '▶ 계속 보기';
+  $('#enPToggle').textContent = P.parked || !live ? `▶ 계속 ${watch ? '보기' : '듣기'}` : '⏸ 잠깐 멈춤';
+  $('#enPAudio').textContent  = E().audioOnly ? '📺 화면 보기' : '🎧 소리만 듣기';
+  $('#enPBack').disabled = !P.player || P.parked;
 }
 
 function closePlayer(){
   if(!P) return;
+  clearTimeout(P.parkT);
   flushPlayer();
   try{ if(P.player && P.player.destroy) P.player.destroy(); }catch(e){}
   $('#enPVid').innerHTML = '';
@@ -817,10 +879,23 @@ function closePlayer(){
 }
 $('#enPClose').addEventListener('click', closePlayer);
 $('#enPDone').addEventListener('click', ()=>{ markDone(false); closePlayer(); });
+$('#enPBack').addEventListener('click', ()=>{
+  if(!P || !P.player || !P.player.getCurrentTime) return;
+  try{ P.player.seekTo(Math.max(0, P.player.getCurrentTime() - 10), true); }catch(e){}
+});
+$('#enPAudio').addEventListener('click', ()=>{
+  const e = E();
+  e.audioOnly = !e.audioOnly; save();
+  $('#enPVid').classList.toggle('audio', e.audioOnly);
+  paintPlayer();
+});
 $('#enPToggle').addEventListener('click', ()=>{
-  if(!P || !P.player || !P.player.getPlayerState) return;
+  if(!P) return;
+  if(P.parked) return resumePlayer();
+  if(!P.player || !P.player.getPlayerState) return;
   try{
-    P.player.getPlayerState() === YT.PlayerState.PLAYING ? P.player.pauseVideo() : P.player.playVideo();
+    if(P.player.getPlayerState() === YT.PlayerState.PLAYING){ P.player.pauseVideo(); parkPlayer(); }
+    else P.player.playVideo();
   }catch(e){}
 });
 
