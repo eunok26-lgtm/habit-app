@@ -10,6 +10,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="english.css">
 <title>오늘 할 일</title>
 <style>
   :root{
@@ -655,6 +656,9 @@
   <!-- 일정 (구글 캘린더) -->
   <section id="viewSched" style="display:none"></section>
 
+  <!-- 엄마표 영어 (english.js) -->
+  <section id="viewEng" style="display:none"></section>
+
   <!-- 부모 모드 -->
   <section id="viewParent" style="display:none"></section>
 </div>
@@ -662,6 +666,7 @@
 <nav class="tabbar">
   <button class="tab on" data-view="today">할 일</button>
   <button class="tab" data-view="sched">내 일정</button>
+  <button class="tab" data-view="eng">영어</button>
 </nav>
 
 <!-- 잠금 -->
@@ -817,7 +822,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-08-23r';
+const APP_VERSION = '2026-09-22e';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -1510,6 +1515,8 @@ function renderParent(){
           : '<b style="color:#c0392b">저장 안 됨 — 창을 닫으면 사라집니다</b>' }
       </p>
     </div>
+
+    ${enParentCard()}
 
     <div class="pcard">
       <h4>🔄 앱 버전 <span style="color:var(--muted);font-weight:600">${APP_VERSION}</span></h4>
@@ -2634,6 +2641,7 @@ $('#wcfgSave').addEventListener('click', async ()=>{
 function switchView(v){
   $('#viewToday').style.display  = v==='today'  ? '' : 'none';
   $('#viewSched').style.display  = v==='sched'  ? '' : 'none';
+  $('#viewEng').style.display    = v==='eng'    ? '' : 'none';
   $('#viewParent').style.display = v==='parent' ? '' : 'none';
   document.querySelector('.tabbar').style.display = v==='parent' ? 'none' : 'flex';
   $('#gearBtn').style.display = v==='parent' ? 'none' : '';
@@ -2647,6 +2655,7 @@ function switchView(v){
 
   if(v==='today'){ $('#helloText').textContent = '할 일';    renderToday(); }
   if(v==='sched'){ $('#helloText').textContent = '내 일정';  renderSched(); loadSchedule(); }
+  if(v==='eng'){   $('#helloText').textContent = '영어';     renderEnglish(); }
   if(v==='parent'){$('#helloText').textContent = '설정';     renderParent(); }
 }
 document.querySelectorAll('.tab').forEach(t=>{
@@ -2719,5 +2728,6 @@ async function forceUpdate(){
   }, 60000);
 })();
 </script>
+<script src="english.js"></script>
 </body>
 </html>
