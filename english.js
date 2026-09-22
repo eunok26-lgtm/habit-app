@@ -6,8 +6,9 @@
 
    db.english = {
      level:'J2', goals:{listen,focus,read,korean}(분),
-     books:[{id,title,level,series,yt,where,due,react,reads,listens,lastAt,addedAt,updatedAt}],
-     log:{ 'YYYY-MM-DD': {listen,focus,read,korean}(초) + books:[{id,title,t:'focus'|'read',at}] },
+     books:[{id,title,level,series,yt,where,due,react,reads,listens,hears,lastAt,addedAt,updatedAt}],
+            (listens = 집중듣기 횟수, hears = 흘려듣기 횟수, reads = 읽기 횟수)
+     log:{ 'YYYY-MM-DD': {listen,focus,read,korean}(초) + books:[{id,title,t:'focus'|'listen'|'read',at}] },
      videos:[{id,title,yt,views,lastAt,addedAt,updatedAt}],   ← 흘려듣기 영상
      log[날짜].vids:[{id,title,at}]                             ← 그 날 본 영상
      run:{ 카테고리: {startedAt, day} }      ← 켜져 있는 스톱워치
@@ -198,6 +199,10 @@ document.body.insertAdjacentHTML('beforeend', `
   <div class="sheet tall" style="max-width:520px">
     <h3 id="enPickTitle">책 고르기</h3>
     <p class="sub" id="enPickSub"></p>
+    <div class="en-seg en-pseg" id="enPickSeg">
+      <button type="button" data-src="book">📚 책 음원</button>
+      <button type="button" data-src="video">📺 영상</button>
+    </div>
     <input type="text" id="enPickQ" placeholder="🔎 제목이나 시리즈로 찾기">
     <div class="en-plist" id="enPickList"></div>
     <div class="row">
@@ -352,7 +357,8 @@ function paintToday(){
     const vids = ((l && l.vids) || []).map((v,i)=>({...v, i}));
     const sub = c.id === 'listen' ? `
       <div class="en-sub">
-        <button class="en-pickbtn" data-pick="watch">📺 영상 보기</button>
+        <button class="en-pickbtn" data-pick="watch">🎧 골라서 듣기·보기</button>
+        ${chips.map(b=>`<span class="en-chip"><span class="t">${esc(b.title)}</span><button class="x" data-unlog="${b.i}" aria-label="빼기">✕</button></span>`).join('')}
         ${vids.map(v=>`<span class="en-chip"><span class="t">${esc(v.title)}</span><button class="x" data-unvid="${v.i}" aria-label="빼기">✕</button></span>`).join('')}
         <button class="en-addt" data-addt="${c.id}">＋ 시간 넣기</button>
       </div>`
@@ -444,8 +450,8 @@ $('#viewEng').addEventListener('click', e=>{
     const [x] = l.books.splice(Number(un.dataset.unlog), 1);
     const b = x && bookOf(x.id);
     if(b){
-      if(x.t === 'read') b.reads = Math.max(0, (b.reads||0) - 1);
-      else b.listens = Math.max(0, (b.listens||0) - 1);
+      const f = x.t === 'read' ? 'reads' : x.t === 'listen' ? 'hears' : 'listens';
+      b[f] = Math.max(0, (b[f]||0) - 1);
       b.updatedAt = Date.now();
     }
     save(); soundUndo(); paintToday();
@@ -484,23 +490,39 @@ $('#enAddModal').addEventListener('click', e=>{
 
 /* ---------- 책 고르기 ---------- */
 let pickMode = 'focus';
+let pickSrc  = 'book';        // 흘려듣기에서 고르는 것: 'book'(책 음원) | 'video'(영상)
+const pickVideo = () => pickMode === 'watch' && pickSrc === 'video';
 function openPick(mode){
   pickMode = mode;
   $('#enPickTitle').textContent = mode === 'focus' ? '📕 어떤 책을 들을까?'
-                                : mode === 'watch' ? '📺 어떤 영상을 볼까?' : '📗 어떤 책을 읽었나요?';
-  $('#enPickSub').textContent = mode === 'focus'
-    ? '▶ 가 붙은 책은 바로 영상이 나와요. 없는 책은 CD나 세이펜으로 들어요.'
-    : mode === 'watch' ? '영상이 끝나면 화면이 저절로 닫혀요. 보는 동안 흘려듣기 시간이 쌓여요.'
-    : '누르면 바로 체크돼요. 같은 책을 여러 번 읽어도 좋아요!';
-  $('#enPickQ').placeholder = mode === 'watch' ? '🔎 영상 이름으로 찾기' : '🔎 제목이나 시리즈로 찾기';
-  $('#enPickNew').textContent = mode === 'watch' ? '＋ 새 영상 넣기' : '＋ 새 책 넣기';
+                                : mode === 'watch' ? '🎧 무엇을 들을까?' : '📗 어떤 책을 읽었나요?';
+  $('#enPickSeg').style.display = mode === 'watch' ? '' : 'none';
   $('#enPickQ').value = '';
+  paintPickHead();
   paintPick();
   openM('enPickModal');
 }
+function paintPickHead(){
+  [...$('#enPickSeg').children].forEach(b=>b.classList.toggle('on', b.dataset.src === pickSrc));
+  $('#enPickSub').textContent = pickMode === 'focus'
+    ? '▶ 가 붙은 책은 바로 영상이 나와요. 없는 책은 CD나 세이펜으로 들어요.'
+    : pickMode === 'watch'
+      ? (pickSrc === 'video'
+          ? '영상이 끝나면 화면이 저절로 닫혀요. 보는 동안 흘려듣기 시간이 쌓여요.'
+          : '집중듣기로 들었던 책을 편하게 틀어 두어요. 끝나면 저절로 닫혀요.')
+    : '누르면 바로 체크돼요. 같은 책을 여러 번 읽어도 좋아요!';
+  $('#enPickQ').placeholder = pickVideo() ? '🔎 영상 이름으로 찾기' : '🔎 제목이나 시리즈로 찾기';
+  $('#enPickNew').textContent = pickVideo() ? '＋ 새 영상 넣기' : '＋ 새 책 넣기';
+}
+$('#enPickSeg').addEventListener('click', e=>{
+  const b = e.target.closest('[data-src]'); if(!b) return;
+  pickSrc = b.dataset.src;
+  $('#enPickQ').value = '';
+  paintPickHead(); paintPick();
+});
 function paintPick(){
   const q = $('#enPickQ').value.trim().toLowerCase();
-  if(pickMode === 'watch'){
+  if(pickVideo()){
     const vs = E().videos.filter(v => !q || v.title.toLowerCase().includes(q))
       .sort((a,b)=> (b.lastAt||0) - (a.lastAt||0) || a.title.localeCompare(b.title));
     $('#enPickList').innerHTML = vs.length ? vs.map(v=>{
@@ -520,7 +542,7 @@ function paintPick(){
     return;
   }
   let list = E().books.filter(b => !q || (b.title + ' ' + (b.series||'')).toLowerCase().includes(q));
-  const rank = b => (pickMode === 'focus' && !parseYT(b.yt) ? 2 : 0) + (b.react === 'no' ? 1 : 0);
+  const rank = b => (pickMode !== 'read' && !parseYT(b.yt) ? 2 : 0) + (b.react === 'no' ? 1 : 0);
   list.sort((a,b)=> rank(a) - rank(b) || (b.lastAt||0) - (a.lastAt||0) || a.title.localeCompare(b.title));
 
   $('#enPickList').innerHTML = list.length ? list.map(b=>`
@@ -529,9 +551,9 @@ function paintPick(){
       <span class="m">
         <span class="n">${esc(b.title)}</span>
         <span class="s"><span class="en-lv">${esc(b.level)}</span>
-          👂${b.listens||0} 📖${b.reads||0} ${REACT_EMO[b.react]||''} ${dueTag(b)}</span>
+          🎧${b.hears||0} 👂${b.listens||0} 📖${b.reads||0} ${REACT_EMO[b.react]||''} ${dueTag(b)}</span>
       </span>
-      <span class="go">${pickMode === 'focus' ? (parseYT(b.yt) ? '▶' : '💿') : '✓'}</span>
+      <span class="go">${pickMode === 'read' ? '✓' : (parseYT(b.yt) ? '▶' : '💿')}</span>
     </button>`).join('')
   : `<div class="empty" style="padding:30px"><b>📚</b>${q ? '찾는 책이 없어요.' : '아직 책장이 비어 있어요.<br>아래 <b>＋ 새 책 넣기</b>로 시작해요.'}</div>`;
 }
@@ -548,13 +570,13 @@ $('#enPickList').addEventListener('click', e=>{
   const r = e.target.closest('[data-pb]'); if(!r) return;
   const b = bookOf(r.dataset.pb); if(!b) return;
   closeM('enPickModal');
-  pickMode === 'focus' ? openPlayer(b, 'focus') : markRead(b);
+  pickMode === 'read' ? markRead(b) : openPlayer(b, pickMode === 'watch' ? 'listen' : 'focus');
 });
 $('#enPickNew').addEventListener('click', ()=>{
   const mode = pickMode;
   closeM('enPickModal');
-  if(mode === 'watch') return openVid(null);
-  openForm(null, b => mode === 'focus' ? openPlayer(b, 'focus') : markRead(b));
+  if(pickVideo()) return openVid(null);
+  openForm(null, b => mode === 'read' ? markRead(b) : openPlayer(b, mode === 'watch' ? 'listen' : 'focus'));
 });
 
 /* ---------- 흘려듣기 영상 넣기 / 고치기 ---------- */
@@ -659,16 +681,18 @@ function flushPlayer(){
   if(whole > 0) addSec(todayKey(), P.cat, whole);
 }
 
-/* cat: 'focus' 는 책(b.yt), 'listen' 은 흘려듣기 영상(v.yt) */
+/* cat: 'focus' 는 집중듣기, 'listen' 은 흘려듣기.
+   item 은 책장의 책이거나 흘려듣기 영상 — 흘려듣기에서는 둘 다 틀 수 있습니다. */
 function openPlayer(item, cat){
   cat = cat || 'focus';
   if(E().run[cat]) stopRun(cat);            // 스톱워치와 겹쳐 세지 않게
   const y = parseYT(item.yt);
   const watch = cat === 'listen';
-  P = {item, cat, y, player:null, since:null, pend:0, marked:false};
+  const isBook = !!bookOf(item.id);
+  P = {item, cat, y, isBook, player:null, since:null, pend:0, marked:false};
 
-  $('#enPTitle').innerHTML = esc(item.title) + (watch ? '' : ` <span class="en-lv">${esc(item.level)}</span>`);
-  $('#enPToggle').style.display = watch ? '' : 'none';
+  $('#enPTitle').innerHTML = esc(item.title) + (isBook ? ` <span class="en-lv">${esc(item.level)}</span>` : '');
+  $('#enPToggle').style.display = watch && y ? '' : 'none';
   const box = $('#enPVid');
   if(y){
     box.className = 'en-video';
@@ -700,7 +724,8 @@ function vidMsg(html){
   $('#enPVid').innerHTML = `<div class="en-vmsg"><div style="font-size:40px">😢</div><div>${html}</div>
     ${url ? `<a href="${url}" target="_blank" rel="noopener">유튜브에서 직접 열기 ↗</a>` : ''}</div>`;
   P.player = null;
-  if(P.cat === 'focus' && !P.since) P.since = Date.now();   // 밖에서 듣는 동안도 세어 둡니다
+  if(P.isBook && !P.since) P.since = Date.now();   // 밖에서 듣는 동안도 세어 둡니다
+  $('#enPToggle').style.display = 'none';
   paintPlayer();
 }
 
@@ -746,7 +771,12 @@ function markDone(auto){
   if(!P || P.marked) return;
   P.marked = true;
   const it = P.item;
-  if(P.cat === 'listen'){
+  if(P.cat === 'listen' && P.isBook){
+    it.hears = (it.hears || 0) + 1;
+    logBook(it, 'listen');
+    save(); soundCheck();
+    toast(`다 들었어요! 🎧 ${it.hears}번째`);
+  }else if(P.cat === 'listen'){
     it.views = (it.views || 0) + 1;
     it.lastAt = Date.now(); it.updatedAt = Date.now();
     logOf(todayKey()).vids = (logOf(todayKey()).vids || []);
@@ -766,11 +796,12 @@ function paintPlayer(){
   if(!P) return;
   const it = P.item, live = !!P.since, watch = P.cat === 'listen';
   const tapHint = P.player && !P.started ? `<span>▶ 영상을 한 번 눌러 주세요</span>` : '';
+  const f = watch ? 'hears' : 'listens';
   $('#enPInfo').innerHTML = `
     <span>오늘 ${watch ? '흘려듣기' : '집중듣기'} <b class="${live?'live':''}">${clockOf(secOf(P.cat, todayKey()))}</b></span>
-    ${watch ? tapHint
-            : `<span>${P.marked ? `이 책 <b>${it.listens}번</b> 들었어요 ✓` : `이 책 <b>${(it.listens||0) + 1}번째</b> 듣는 중`}</span>`}`;
-  $('#enPDone').style.display = watch ? 'none' : '';
+    ${!P.isBook ? tapHint
+      : `<span>${P.marked ? `이 책 <b>${it[f]}번</b> 들었어요 ✓` : `이 책 <b>${(it[f]||0) + 1}번째</b> 듣는 중`}</span>${tapHint}`}`;
+  $('#enPDone').style.display = P.isBook ? '' : 'none';
   $('#enPDone').textContent = P.marked ? '닫기' : '다 들었어요 ✓';
   if(watch) $('#enPToggle').textContent = live ? '⏸ 잠깐 멈춤' : '▶ 계속 보기';
 }
@@ -847,7 +878,7 @@ function paintShelfGrid(){
           <div class="en-tt">${esc(b.title)}</div>
           <div class="en-tm">
             <span class="en-lv">${esc(b.level)}</span>
-            <span>👂${b.listens||0}</span><span>📖${b.reads||0}</span>
+            <span>🎧${b.hears||0}</span><span>👂${b.listens||0}</span><span>📖${b.reads||0}</span>
             ${REACT_EMO[b.react] ? `<span>${REACT_EMO[b.react]}</span>` : ''}
             ${parseYT(b.yt) ? '' : '<span class="en-nolink">영상 없음</span>'}
             ${dueTag(b)}
@@ -875,6 +906,7 @@ function openDetail(id){
       </div>
     </div>
     <div class="en-dstat">
+      <div>🎧 흘려듣기<b>${b.hears||0}번</b></div>
       <div>👂 집중듣기<b>${b.listens||0}번</b></div>
       <div>📖 읽기<b>${b.reads||0}번</b></div>
     </div>
@@ -884,6 +916,7 @@ function openDetail(id){
       <button class="btn accent" data-da="listen">${y ? '▶ 집중듣기' : '💿 집중듣기'}</button>
       <button class="btn" data-da="read">📖 읽었어요</button>
     </div>
+    <button class="btn ghost wide" data-da="hear" style="margin-top:10px">🎧 흘려듣기로 틀기</button>
     <div class="row">
       <button class="btn ghost" data-da="edit">✏️ 고치기</button>
       <button class="btn ghost" data-enclose>닫기</button>
@@ -901,6 +934,7 @@ $('#enDetail').addEventListener('click', e=>{
   const a = e.target.closest('[data-da]'); if(!a) return;
   closeM('enDetailModal');
   if(a.dataset.da === 'listen') openPlayer(b, 'focus');
+  if(a.dataset.da === 'hear')   openPlayer(b, 'listen');
   if(a.dataset.da === 'read')   markRead(b);
   if(a.dataset.da === 'edit')   openForm(b.id);
 });
@@ -1031,7 +1065,7 @@ $('#enFDel').addEventListener('click', ()=>{
 function paintStats(){
   const e = E(), L = e.log, tk = todayKey();
   const tot = {listen:0, focus:0, read:0, korean:0};
-  let reads = 0, listens = 0, days = 0, views = 0;
+  let reads = 0, listens = 0, hears = 0, days = 0, views = 0;
   const seen = new Set(), cnt = {};
   Object.keys(L).forEach(k=>{
     const l = L[k]; let any = false;
@@ -1039,7 +1073,7 @@ function paintStats(){
     if((l.vids||[]).length){ any = true; views += l.vids.length; }
     (l.books||[]).forEach(b=>{
       any = true; seen.add(b.id);
-      b.t === 'read' ? reads++ : listens++;
+      if(b.t === 'read') reads++; else if(b.t === 'listen') hears++; else listens++;
       const x = cnt[b.id] || (cnt[b.id] = {title:b.title, n:0});
       x.n++;
     });
@@ -1078,7 +1112,7 @@ function paintStats(){
         <div class="s">👂${listens} · 📖${reads}번</div></div>
       <div class="en-stat"><div class="l">👂 집중듣기</div><div class="v">${fmtMin(tot.focus)}</div></div>
       <div class="en-stat"><div class="l">🎧 흘려듣기</div><div class="v">${fmtMin(tot.listen)}</div>
-        ${views ? `<div class="s">📺 영상 ${views}번</div>` : ''}</div>
+        ${views || hears ? `<div class="s">${[views ? `📺 영상 ${views}번` : '', hears ? `📚 책 ${hears}번` : ''].filter(Boolean).join(' · ')}</div>` : ''}</div>
     </div>
 
     <div class="en-box">

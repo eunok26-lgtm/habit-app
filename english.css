@@ -235,3 +235,6 @@ input[type=date]{
 div.en-prow{cursor:pointer}
 .en-vedit{flex:0 0 auto; width:40px; height:40px; border-radius:12px; font-size:16px; border:2px solid var(--line); background:#fff}
 .en-vedit:active{background:var(--line)}
+
+/* 흘려듣기 고르기 — 책 음원 / 영상 */
+.en-pseg{margin:0 0 12px}
