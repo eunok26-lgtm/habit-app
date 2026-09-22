@@ -8,6 +8,8 @@
      level:'J2', goals:{listen,focus,read,korean}(분),
      books:[{id,title,level,series,yt,where,due,react,reads,listens,lastAt,addedAt,updatedAt}],
      log:{ 'YYYY-MM-DD': {listen,focus,read,korean}(초) + books:[{id,title,t:'focus'|'read',at}] },
+     videos:[{id,title,yt,views,lastAt,addedAt,updatedAt}],   ← 흘려듣기 영상
+     log[날짜].vids:[{id,title,at}]                             ← 그 날 본 영상
      run:{ 카테고리: {startedAt, day} }      ← 켜져 있는 스톱워치
    }
    ========================================================== */
@@ -36,6 +38,7 @@ function E(){
   e.books = e.books || [];
   e.log   = e.log   || {};
   e.run   = e.run   || {};
+  e.videos = e.videos || [];
   return e;
 }
 function peek(k){ return E().log[k] || null; }
@@ -44,6 +47,7 @@ function logOf(k){
   return L[k] || (L[k] = {listen:0, focus:0, read:0, korean:0, books:[]});
 }
 function bookOf(id){ return E().books.find(b=>b.id === id); }
+function vidOf(id){ return E().videos.find(v=>v.id === id); }
 
 /* ---------- 시간 ---------- */
 const pad = n => String(n).padStart(2,'0');
@@ -56,7 +60,7 @@ function secOf(cat, k){
   let s = l ? (l[cat] || 0) : 0;
   const r = E().run[cat];
   if(r && r.day === k) s += runSec(cat);
-  if(cat === 'focus' && P && k === todayKey()) s += pendingSec();
+  if(P && cat === P.cat && k === todayKey()) s += pendingSec();
   return s;
 }
 function fmtMin(s){
@@ -147,9 +151,8 @@ function ytWatchURL(y){
   return y.v ? `https://www.youtube.com/watch?v=${y.v}` + (y.list ? `&list=${y.list}` : '')
              : `https://www.youtube.com/playlist?list=${y.list}`;
 }
-function ytSearch(title){
-  window.open('https://www.youtube.com/results?search_query=' +
-              encodeURIComponent(title + ' read aloud'), '_blank');
+function ytSearch(q){
+  window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent(q), '_blank');
 }
 
 /* ---------- 표지 ---------- */
@@ -211,6 +214,7 @@ document.body.insertAdjacentHTML('beforeend', `
     <div class="en-pinfo" id="enPInfo"></div>
     <div class="row">
       <button class="btn ghost" id="enPClose">닫기</button>
+      <button class="btn" id="enPToggle">⏸ 잠깐 멈춤</button>
       <button class="btn accent" id="enPDone">다 들었어요 ✓</button>
     </div>
   </div>
@@ -273,6 +277,26 @@ document.body.insertAdjacentHTML('beforeend', `
   </div>
 </div>
 
+<div class="modal" id="enVidModal">
+  <div class="sheet" style="max-width:460px">
+    <h3 id="enVTitle">영상 넣기</h3>
+    <p class="sub">흘려듣기로 볼 영상이에요. 재생목록 주소를 넣으면 차례로 이어서 나와요.</p>
+    <label class="fl">이름</label>
+    <input type="text" id="enVName" placeholder="예: Peppa Pig 시즌 1" autocomplete="off">
+    <label class="fl">유튜브 주소</label>
+    <div class="en-ytrow">
+      <input type="text" id="enVYt" placeholder="https://youtu.be/… 또는 재생목록 주소" autocomplete="off">
+      <button type="button" class="btn ghost" id="enVFind">🔎 찾기</button>
+    </div>
+    <div class="en-ytprev" id="enVYtPrev"></div>
+    <div class="row">
+      <button class="btn ghost" data-enclose>취소</button>
+      <button class="btn accent" id="enVSave">넣기</button>
+    </div>
+    <button class="btn ghost wide" id="enVDel" style="margin-top:10px; color:#c0392b">🗑 이 영상 지우기</button>
+  </div>
+</div>
+
 <div class="modal" id="enDetailModal">
   <div class="sheet" style="max-width:440px" id="enDetail"></div>
 </div>
@@ -280,7 +304,7 @@ document.body.insertAdjacentHTML('beforeend', `
 
 function openM(id){ $('#' + id).classList.add('open'); }
 function closeM(id){ $('#' + id).classList.remove('open'); }
-document.querySelectorAll('#enAddModal,#enPickModal,#enFormModal,#enDetailModal').forEach(m=>{
+document.querySelectorAll('#enAddModal,#enPickModal,#enFormModal,#enVidModal,#enDetailModal').forEach(m=>{
   m.addEventListener('click', e=>{
     if(e.target === m || e.target.closest('[data-enclose]')) closeM(m.id);
   });
@@ -325,7 +349,14 @@ function paintToday(){
 
   $('#enBody').innerHTML = dueHTML + CATS.map(c=>{
     const chips = got.map((b,i)=>({...b, i})).filter(b => b.t === c.id);
-    const sub = (c.id === 'focus' || c.id === 'read') ? `
+    const vids = ((l && l.vids) || []).map((v,i)=>({...v, i}));
+    const sub = c.id === 'listen' ? `
+      <div class="en-sub">
+        <button class="en-pickbtn" data-pick="watch">📺 영상 보기</button>
+        ${vids.map(v=>`<span class="en-chip"><span class="t">${esc(v.title)}</span><button class="x" data-unvid="${v.i}" aria-label="빼기">✕</button></span>`).join('')}
+        <button class="en-addt" data-addt="${c.id}">＋ 시간 넣기</button>
+      </div>`
+    : (c.id === 'focus' || c.id === 'read') ? `
       <div class="en-sub">
         <button class="en-pickbtn" data-pick="${c.id}">${c.id === 'focus' ? '📕 책 골라서 듣기' : '📗 읽은 책 체크'}</button>
         ${chips.map(b=>`<span class="en-chip"><span class="t">${esc(b.title)}</span><button class="x" data-unlog="${b.i}" aria-label="빼기">✕</button></span>`).join('')}
@@ -397,6 +428,16 @@ $('#viewEng').addEventListener('click', e=>{
   const pk = t.closest('[data-pick]');
   if(pk) return openPick(pk.dataset.pick);
 
+  const uv = t.closest('[data-unvid]');
+  if(uv){
+    const l = peek(todayKey()); if(!l || !l.vids) return;
+    const [x] = l.vids.splice(Number(uv.dataset.unvid), 1);
+    const v = x && vidOf(x.id);
+    if(v){ v.views = Math.max(0, (v.views||0) - 1); v.updatedAt = Date.now(); }
+    save(); soundUndo(); paintToday();
+    return toast('뺐어요');
+  }
+
   const un = t.closest('[data-unlog]');
   if(un){
     const l = peek(todayKey()); if(!l) return;
@@ -445,16 +486,39 @@ $('#enAddModal').addEventListener('click', e=>{
 let pickMode = 'focus';
 function openPick(mode){
   pickMode = mode;
-  $('#enPickTitle').textContent = mode === 'focus' ? '📕 어떤 책을 들을까?' : '📗 어떤 책을 읽었나요?';
+  $('#enPickTitle').textContent = mode === 'focus' ? '📕 어떤 책을 들을까?'
+                                : mode === 'watch' ? '📺 어떤 영상을 볼까?' : '📗 어떤 책을 읽었나요?';
   $('#enPickSub').textContent = mode === 'focus'
     ? '▶ 가 붙은 책은 바로 영상이 나와요. 없는 책은 CD나 세이펜으로 들어요.'
+    : mode === 'watch' ? '영상이 끝나면 화면이 저절로 닫혀요. 보는 동안 흘려듣기 시간이 쌓여요.'
     : '누르면 바로 체크돼요. 같은 책을 여러 번 읽어도 좋아요!';
+  $('#enPickQ').placeholder = mode === 'watch' ? '🔎 영상 이름으로 찾기' : '🔎 제목이나 시리즈로 찾기';
+  $('#enPickNew').textContent = mode === 'watch' ? '＋ 새 영상 넣기' : '＋ 새 책 넣기';
   $('#enPickQ').value = '';
   paintPick();
   openM('enPickModal');
 }
 function paintPick(){
   const q = $('#enPickQ').value.trim().toLowerCase();
+  if(pickMode === 'watch'){
+    const vs = E().videos.filter(v => !q || v.title.toLowerCase().includes(q))
+      .sort((a,b)=> (b.lastAt||0) - (a.lastAt||0) || a.title.localeCompare(b.title));
+    $('#enPickList').innerHTML = vs.length ? vs.map(v=>{
+      const y = parseYT(v.yt);
+      return `
+      <div class="en-prow" data-pv="${v.id}" role="button">
+        ${coverHTML(v, 'sm')}
+        <span class="m">
+          <span class="n">${esc(v.title)}</span>
+          <span class="s">📺 ${v.views||0}번 봤어요${y && y.list ? ' · 재생목록' : ''}</span>
+        </span>
+        <button class="en-vedit" data-ve="${v.id}" aria-label="고치기">✏️</button>
+        <span class="go">▶</span>
+      </div>`;
+    }).join('')
+    : `<div class="empty" style="padding:30px"><b>📺</b>${q ? '찾는 영상이 없어요.' : '아직 영상이 없어요.<br>아래 <b>＋ 새 영상 넣기</b>로 시작해요.'}</div>`;
+    return;
+  }
   let list = E().books.filter(b => !q || (b.title + ' ' + (b.series||'')).toLowerCase().includes(q));
   const rank = b => (pickMode === 'focus' && !parseYT(b.yt) ? 2 : 0) + (b.react === 'no' ? 1 : 0);
   list.sort((a,b)=> rank(a) - rank(b) || (b.lastAt||0) - (a.lastAt||0) || a.title.localeCompare(b.title));
@@ -473,15 +537,75 @@ function paintPick(){
 }
 $('#enPickQ').addEventListener('input', paintPick);
 $('#enPickList').addEventListener('click', e=>{
+  const ve = e.target.closest('[data-ve]');
+  if(ve){ closeM('enPickModal'); return openVid(ve.dataset.ve); }
+  const pv = e.target.closest('[data-pv]');
+  if(pv){
+    const v = vidOf(pv.dataset.pv); if(!v) return;
+    closeM('enPickModal');
+    return openPlayer(v, 'listen');
+  }
   const r = e.target.closest('[data-pb]'); if(!r) return;
   const b = bookOf(r.dataset.pb); if(!b) return;
   closeM('enPickModal');
-  pickMode === 'focus' ? openPlayer(b) : markRead(b);
+  pickMode === 'focus' ? openPlayer(b, 'focus') : markRead(b);
 });
 $('#enPickNew').addEventListener('click', ()=>{
   const mode = pickMode;
   closeM('enPickModal');
-  openForm(null, b => mode === 'focus' ? openPlayer(b) : markRead(b));
+  if(mode === 'watch') return openVid(null);
+  openForm(null, b => mode === 'focus' ? openPlayer(b, 'focus') : markRead(b));
+});
+
+/* ---------- 흘려듣기 영상 넣기 / 고치기 ---------- */
+let vidId = null;
+function openVid(id){
+  const v = id ? vidOf(id) : null;
+  vidId = id;
+  $('#enVTitle').textContent = v ? '영상 고치기' : '영상 넣기';
+  $('#enVSave').textContent  = v ? '저장' : '넣기';
+  $('#enVDel').style.display = v ? '' : 'none';
+  $('#enVName').value = v ? v.title : '';
+  $('#enVYt').value   = v ? v.yt : '';
+  paintVidPrev();
+  openM('enVidModal');
+  if(!v) setTimeout(()=>$('#enVName').focus(), 80);
+}
+function paintVidPrev(){
+  const s = $('#enVYt').value.trim(), y = parseYT(s), el = $('#enVYtPrev');
+  el.className = 'en-ytprev';
+  if(!s){ el.innerHTML = '<span>🔎 찾기를 누르면 이름으로 유튜브를 찾아 줘요.</span>'; return; }
+  if(!y){ el.classList.add('bad'); el.innerHTML = '유튜브 주소가 아닌 것 같아요'; return; }
+  el.classList.add('ok');
+  el.innerHTML = y.v
+    ? `<img src="https://i.ytimg.com/vi/${y.v}/mqdefault.jpg" alt=""><span>✓ 영상 확인${y.list ? ' · 재생목록으로 이어져요' : ''}</span>`
+    : '<span>✓ 재생목록 확인 — 처음부터 차례로 나와요</span>';
+}
+$('#enVYt').addEventListener('input', paintVidPrev);
+$('#enVFind').addEventListener('click', ()=>{
+  const q = $('#enVName').value.trim();
+  if(!q) return toast('이름을 먼저 적어 주세요');
+  ytSearch(q);
+  toast('찾은 영상 주소를 복사해서 붙여 넣어 주세요');
+});
+$('#enVSave').addEventListener('click', ()=>{
+  const title = $('#enVName').value.trim(), yt = $('#enVYt').value.trim();
+  if(!title) return toast('이름을 적어 주세요');
+  if(!parseYT(yt)) return toast('유튜브 주소를 넣어 주세요');
+  const v = vidId ? vidOf(vidId) : null;
+  if(v) Object.assign(v, {title, yt, updatedAt:Date.now()});
+  else E().videos.push({id:uid(), title, yt, views:0, lastAt:0, addedAt:Date.now(), updatedAt:Date.now()});
+  save(); closeM('enVidModal');
+  toast(v ? '고쳤어요' : `📺 "${title}"을 넣었어요`);
+  openPick('watch');
+});
+$('#enVDel').addEventListener('click', ()=>{
+  const v = vidOf(vidId); if(!v) return;
+  if(!confirm(`"${v.title}"을 지울까요?\n지금까지 본 기록은 그대로 남아요.`)) return;
+  E().videos = E().videos.filter(x=>x.id !== v.id);
+  save(); closeM('enVidModal');
+  toast('지웠어요');
+  openPick('watch');
 });
 
 function logBook(b, t){
@@ -498,9 +622,12 @@ function markRead(b){
 }
 
 /* ==========================================================
-   집중듣기 플레이어 — 영상이 재생되는 동안만 시간을 셉니다
+   플레이어 — 집중듣기(책)와 흘려듣기(영상)가 같이 씁니다.
+   · 영상이 재생되는 동안만 시간을 셉니다.
+   · 영상이 끝나면 바로 닫습니다. 유튜브가 끝 화면에 추천 영상을 띄우기 때문입니다.
+     (재생목록은 마지막 영상이 끝날 때 닫습니다)
    ========================================================== */
-let P = null;          // {book, y, player, since, pend, marked}
+let P = null;          // {item, cat, y, player, since, pend, marked}
 let ytReady = null;
 
 function loadYT(){
@@ -529,15 +656,19 @@ function flushPlayer(){
   if(P.since) P.since = Date.now();
   const whole = Math.floor(s);
   P.pend = s - whole;
-  if(whole > 0) addSec(todayKey(), 'focus', whole);
+  if(whole > 0) addSec(todayKey(), P.cat, whole);
 }
 
-function openPlayer(b){
-  if(E().run.focus) stopRun('focus');       // 스톱워치와 겹쳐 세지 않게
-  const y = parseYT(b.yt);
-  P = {book:b, y, player:null, since:null, pend:0, marked:false};
+/* cat: 'focus' 는 책(b.yt), 'listen' 은 흘려듣기 영상(v.yt) */
+function openPlayer(item, cat){
+  cat = cat || 'focus';
+  if(E().run[cat]) stopRun(cat);            // 스톱워치와 겹쳐 세지 않게
+  const y = parseYT(item.yt);
+  const watch = cat === 'listen';
+  P = {item, cat, y, player:null, since:null, pend:0, marked:false};
 
-  $('#enPTitle').innerHTML = `${esc(b.title)} <span class="en-lv">${esc(b.level)}</span>`;
+  $('#enPTitle').innerHTML = esc(item.title) + (watch ? '' : ` <span class="en-lv">${esc(item.level)}</span>`);
+  $('#enPToggle').style.display = watch ? '' : 'none';
   const box = $('#enPVid');
   if(y){
     box.className = 'en-video';
@@ -545,10 +676,11 @@ function openPlayer(b){
     const me = P;
     loadYT().then(()=>{
       if(P !== me) return;
-      const pv = {playsinline:1, rel:0, modestbranding:1, iv_load_policy:3};
+      /* 흘려듣기는 유튜브 버튼을 끄고 아래 앱 버튼으로만 조작합니다 */
+      const pv = {playsinline:1, rel:0, iv_load_policy:3, controls: watch ? 0 : 1, disablekb: watch ? 1 : 0};
       if(y.list){ pv.list = y.list; if(!y.v) pv.listType = 'playlist'; }
-      const opts = {host:'https://www.youtube-nocookie.com', width:'100%', height:'100%',
-                    playerVars:pv, events:{onStateChange:onYTState, onError:onYTError}};
+      const opts = {host:'https://www.youtube-nocookie.com', width:'100%', height:'100%', playerVars:pv,
+                    events:{onReady:onYTReady, onStateChange:onYTState, onError:onYTError}};
       if(y.v) opts.videoId = y.v;
       P.player = new YT.Player('enYT', opts);
     }).catch(()=> vidMsg('유튜브를 불러오지 못했어요.<br>인터넷 연결을 확인해 주세요.'));
@@ -568,47 +700,79 @@ function vidMsg(html){
   $('#enPVid').innerHTML = `<div class="en-vmsg"><div style="font-size:40px">😢</div><div>${html}</div>
     ${url ? `<a href="${url}" target="_blank" rel="noopener">유튜브에서 직접 열기 ↗</a>` : ''}</div>`;
   P.player = null;
-  if(!P.since) P.since = Date.now();         // 밖에서 듣는 동안도 세어 둡니다
+  if(P.cat === 'focus' && !P.since) P.since = Date.now();   // 밖에서 듣는 동안도 세어 둡니다
+  paintPlayer();
+}
+
+function onYTReady(){
+  if(!P || !P.player) return;
+  const me = P;
+  try{ P.player.playVideo(); }catch(e){}
+  /* 아이패드는 한 번 직접 눌러야 재생되는 경우가 있어요 */
+  setTimeout(()=>{ if(P === me && !P.started) paintPlayer(); }, 1500);
 }
 
 function onYTState(ev){
   if(!P) return;
   const S = YT.PlayerState;
-  if(ev.data === S.PLAYING){ if(!P.since) P.since = Date.now(); }
+  if(ev.data === S.PLAYING){ P.started = true; if(!P.since) P.since = Date.now(); }
   else if(P.since){
     P.pend += (Date.now() - P.since)/1000; P.since = null;
     flushPlayer();
   }
-  if(ev.data === S.ENDED) markListened(true);
+  if(ev.data === S.ENDED && !moreInList()){
+    markDone(true);
+    return closePlayer();
+  }
   paintPlayer();
+}
+/* 재생목록에서 아직 뒤에 영상이 남았는지 */
+function moreInList(){
+  try{
+    const pl = P.player && P.player.getPlaylist && P.player.getPlaylist();
+    return !!(pl && pl.length && P.player.getPlaylistIndex() < pl.length - 1);
+  }catch(e){ return false; }
 }
 function onYTError(ev){
   const c = ev.data;
   vidMsg(c === 101 || c === 150
     ? '이 영상은 만든 사람이 다른 곳에서<br>재생하지 못하게 막아 두었어요.'
-    : c === 100 ? '지워졌거나 비공개로 바뀐 영상이에요.<br>책장에서 주소를 바꿔 주세요.'
+    : c === 100 ? '지워졌거나 비공개로 바뀐 영상이에요.<br>주소를 바꿔 주세요.'
     : '영상을 재생하지 못했어요.');
 }
 
-function markListened(auto){
+/* 다 들었어요 / 다 봤어요 — 한 번 열 때 한 번만 셉니다 */
+function markDone(auto){
   if(!P || P.marked) return;
   P.marked = true;
-  const b = P.book;
-  b.listens = (b.listens || 0) + 1;
-  logBook(b, 'focus');
-  save(); soundCheck();
-  toast(auto ? `끝까지 들었어요! 👂 ${b.listens}번째` : `다 들었어요! 👂 ${b.listens}번째`);
+  const it = P.item;
+  if(P.cat === 'listen'){
+    it.views = (it.views || 0) + 1;
+    it.lastAt = Date.now(); it.updatedAt = Date.now();
+    logOf(todayKey()).vids = (logOf(todayKey()).vids || []);
+    logOf(todayKey()).vids.push({id:it.id, title:it.title, at:Date.now()});
+    save(); soundCheck();
+    toast(`다 봤어요! 📺 ${it.views}번째`);
+  }else{
+    it.listens = (it.listens || 0) + 1;
+    logBook(it, 'focus');
+    save(); soundCheck();
+    toast(auto ? `끝까지 들었어요! 👂 ${it.listens}번째` : `다 들었어요! 👂 ${it.listens}번째`);
+  }
   paintPlayer();
 }
 
 function paintPlayer(){
   if(!P) return;
-  const b = P.book;
-  const live = !!P.since;
+  const it = P.item, live = !!P.since, watch = P.cat === 'listen';
+  const tapHint = P.player && !P.started ? `<span>▶ 영상을 한 번 눌러 주세요</span>` : '';
   $('#enPInfo').innerHTML = `
-    <span>오늘 집중듣기 <b class="${live?'live':''}">${clockOf(secOf('focus', todayKey()))}</b></span>
-    <span>${P.marked ? `이 책 <b>${b.listens}번</b> 들었어요 ✓` : `이 책 <b>${(b.listens||0) + 1}번째</b> 듣는 중`}</span>`;
+    <span>오늘 ${watch ? '흘려듣기' : '집중듣기'} <b class="${live?'live':''}">${clockOf(secOf(P.cat, todayKey()))}</b></span>
+    ${watch ? tapHint
+            : `<span>${P.marked ? `이 책 <b>${it.listens}번</b> 들었어요 ✓` : `이 책 <b>${(it.listens||0) + 1}번째</b> 듣는 중`}</span>`}`;
+  $('#enPDone').style.display = watch ? 'none' : '';
   $('#enPDone').textContent = P.marked ? '닫기' : '다 들었어요 ✓';
+  if(watch) $('#enPToggle').textContent = live ? '⏸ 잠깐 멈춤' : '▶ 계속 보기';
 }
 
 function closePlayer(){
@@ -621,7 +785,13 @@ function closePlayer(){
   refresh();
 }
 $('#enPClose').addEventListener('click', closePlayer);
-$('#enPDone').addEventListener('click', ()=>{ markListened(false); closePlayer(); });
+$('#enPDone').addEventListener('click', ()=>{ markDone(false); closePlayer(); });
+$('#enPToggle').addEventListener('click', ()=>{
+  if(!P || !P.player || !P.player.getPlayerState) return;
+  try{
+    P.player.getPlayerState() === YT.PlayerState.PLAYING ? P.player.pauseVideo() : P.player.playVideo();
+  }catch(e){}
+});
 
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) flushPlayer(); });
 window.addEventListener('pagehide', flushPlayer);
@@ -730,7 +900,7 @@ $('#enDetail').addEventListener('click', e=>{
   }
   const a = e.target.closest('[data-da]'); if(!a) return;
   closeM('enDetailModal');
-  if(a.dataset.da === 'listen') openPlayer(b);
+  if(a.dataset.da === 'listen') openPlayer(b, 'focus');
   if(a.dataset.da === 'read')   markRead(b);
   if(a.dataset.da === 'edit')   openForm(b.id);
 });
@@ -790,7 +960,7 @@ $('#enFYt').addEventListener('input', paintYtPrev);
 $('#enFFind').addEventListener('click', ()=>{
   const title = $('#enFName').value.trim();
   if(!title) return toast('책 제목을 먼저 적어 주세요');
-  ytSearch(title);
+  ytSearch(title + ' read aloud');
   toast('찾은 영상 주소를 복사해서 붙여 넣어 주세요');
 });
 
@@ -861,11 +1031,12 @@ $('#enFDel').addEventListener('click', ()=>{
 function paintStats(){
   const e = E(), L = e.log, tk = todayKey();
   const tot = {listen:0, focus:0, read:0, korean:0};
-  let reads = 0, listens = 0, days = 0;
+  let reads = 0, listens = 0, days = 0, views = 0;
   const seen = new Set(), cnt = {};
   Object.keys(L).forEach(k=>{
     const l = L[k]; let any = false;
     CATS.forEach(c=>{ const s = secOf(c.id, k); tot[c.id] += s; if(s > 0) any = true; });
+    if((l.vids||[]).length){ any = true; views += l.vids.length; }
     (l.books||[]).forEach(b=>{
       any = true; seen.add(b.id);
       b.t === 'read' ? reads++ : listens++;
@@ -906,7 +1077,8 @@ function paintStats(){
       <div class="en-stat"><div class="l">📚 만난 책</div><div class="v">${seen.size}권</div>
         <div class="s">👂${listens} · 📖${reads}번</div></div>
       <div class="en-stat"><div class="l">👂 집중듣기</div><div class="v">${fmtMin(tot.focus)}</div></div>
-      <div class="en-stat"><div class="l">🎧 흘려듣기</div><div class="v">${fmtMin(tot.listen)}</div></div>
+      <div class="en-stat"><div class="l">🎧 흘려듣기</div><div class="v">${fmtMin(tot.listen)}</div>
+        ${views ? `<div class="s">📺 영상 ${views}번</div>` : ''}</div>
     </div>
 
     <div class="en-box">

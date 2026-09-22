@@ -230,3 +230,8 @@ input[type=date]{
 .en-goals{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px}
 .en-goals label{font-size:13px; font-weight:800; color:var(--muted)}
 .en-goals input{margin-top:6px}
+
+/* 흘려듣기 영상 목록 — 줄 전체가 재생, ✏️ 는 고치기 */
+div.en-prow{cursor:pointer}
+.en-vedit{flex:0 0 auto; width:40px; height:40px; border-radius:12px; font-size:16px; border:2px solid var(--line); background:#fff}
+.en-vedit:active{background:var(--line)}
