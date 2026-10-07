@@ -467,6 +467,68 @@
   }
   textarea:focus{outline:none; border-color:var(--accent)}
 
+  /* ---------- 인쇄 ---------- */
+  #printArea{display:none}
+
+  .pr-sheet{color:#000; font-size:12pt; line-height:1.45}
+  .pr-title{font-size:19pt; font-weight:800; margin:0 0 2mm}
+  .pr-sub{font-size:10pt; color:#555; margin:0 0 6mm}
+  .pr-block{margin:0 0 7mm; break-inside:avoid}
+  .pr-h{font-size:13pt; font-weight:800; margin:0 0 2.5mm; padding-bottom:1.5mm;
+        border-bottom:2px solid #000}
+  .pr-note{font-size:9.5pt; color:#666; margin:1.5mm 0 0}
+
+  table.pr{width:100%; border-collapse:collapse; table-layout:fixed}
+  table.pr th, table.pr td{border:1px solid #999; padding:2.2mm 1.5mm; font-size:10.5pt;
+                           vertical-align:middle}
+  table.pr th{background:#f0f0f0; font-weight:800; text-align:center; font-size:10pt}
+  table.pr td.nm{text-align:left; font-weight:600}
+  table.pr td.ck{text-align:center; width:11mm}
+  table.pr td.off{background:#f6f6f6}
+  table.pr tr.slot td{background:#e8e8e8; font-weight:800; font-size:10pt; text-align:left}
+  .pr-box{display:inline-block; width:5mm; height:5mm; border:1.4px solid #333; border-radius:1mm}
+
+  ul.pr-list{list-style:none; margin:0; padding:0}
+  ul.pr-list li{display:flex; align-items:center; gap:3mm; padding:2.2mm 0;
+                border-bottom:1px solid #ddd; font-size:12pt}
+  .pr-line{border-bottom:1px solid #bbb; height:8mm}
+
+  .pr-two{display:flex; gap:6mm}
+  .pr-two > *{flex:1; min-width:0}
+
+  /* 화면에서 보는 미리보기 */
+  #printPreview{
+    background:#fff; border:2px solid var(--line); border-radius:12px;
+    padding:14px 16px; max-height:46vh; overflow:auto; margin-top:6px;
+  }
+  #printPreview .pr-sheet{font-size:11px}
+  #printPreview .pr-title{font-size:17px}
+  #printPreview .pr-sub{font-size:11px; margin-bottom:12px}
+  #printPreview .pr-block{margin-bottom:14px}
+  #printPreview .pr-h{font-size:13px}
+  #printPreview table.pr th, #printPreview table.pr td{padding:4px 3px; font-size:10px}
+  #printPreview ul.pr-list li{font-size:11px; padding:4px 0}
+  #printPreview .pr-box{width:11px; height:11px}
+  #printPreview .pr-line{height:16px}
+
+  .pr-pick{display:flex; flex-direction:column; gap:7px; margin-top:6px}
+  .pr-pick label{
+    display:flex; align-items:center; gap:11px; padding:12px 14px;
+    border:2px solid var(--line); border-radius:14px; background:#fff;
+    font-size:15px; font-weight:700; cursor:pointer;
+  }
+  .pr-pick label.on{border-color:var(--accent); background:#fff6ec}
+  .pr-pick input{width:20px; height:20px; accent-color:var(--accent); flex:0 0 auto}
+  .pr-pick .d{display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-top:2px}
+
+  @media print{
+    @page{size:A4 portrait; margin:12mm}
+    html, body{background:#fff !important}
+    body > *{display:none !important}
+    body > #printArea{display:block !important}
+    .toast, .modal, .tabbar{display:none !important}
+  }
+
   /* ---------- 모달 ---------- */
   .modal{
     position:fixed; inset:0; z-index:100; display:none;
@@ -670,6 +732,44 @@
 </nav>
 
 <!-- 잠금 -->
+<!-- 인쇄될 내용이 들어가는 곳 (화면에는 안 보입니다) -->
+<div id="printArea"></div>
+
+<!-- 인쇄 -->
+<div class="modal" id="printModal">
+  <div class="sheet tall" style="max-width:540px">
+    <h3>🖨 인쇄하기</h3>
+    <p class="sub">넣을 것을 고르고 인쇄하세요. 종이에 맞게 정리해서 나옵니다.</p>
+
+    <label class="fl">제목</label>
+    <input type="text" id="prTitle" placeholder="예: 우리 딸 한 주">
+
+    <label class="fl">어느 주를 인쇄할까요?</label>
+    <div class="pick" id="prWeek">
+      <button type="button" data-prw="this" style="flex:1">이번 주</button>
+      <button type="button" data-prw="next" style="flex:1">다음 주</button>
+    </div>
+
+    <label class="fl">무엇을 넣을까요?</label>
+    <div class="pr-pick" id="prPick"></div>
+
+    <label class="fl">손으로 적을 빈 줄</label>
+    <div class="pick" id="prBlank">
+      <button type="button" data-prb="0" style="flex:1">없음</button>
+      <button type="button" data-prb="3" style="flex:1">3줄</button>
+      <button type="button" data-prb="6" style="flex:1">6줄</button>
+    </div>
+
+    <label class="fl">미리보기</label>
+    <div id="printPreview"></div>
+
+    <div class="row">
+      <button class="btn ghost" data-close>닫기</button>
+      <button class="btn accent" id="prGo">인쇄</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="lockModal">
   <div class="sheet" id="pinSheet" style="max-width:360px">
     <h3 id="pinTitle">부모 모드</h3>
@@ -822,7 +922,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-09-22f';
+const APP_VERSION = '2026-10-07a';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -1533,6 +1633,14 @@ function renderParent(){
     </div>
 
     <div class="pcard">
+      <h4>🖨 인쇄하기</h4>
+      <p class="hint" style="margin:0 0 12px">
+        할 일 체크표, 시간표, 준비물, 일정을 골라서 종이로 뽑아요. 벽에 붙여 두기 좋아요.
+      </p>
+      <button class="btn ghost wide" id="pPrint">인쇄할 것 고르기</button>
+    </div>
+
+    <div class="pcard">
       <h4>📋 지난 주 계획 가져오기</h4>
       <p class="hint" style="margin:0 0 12px">
         지난 주에 넣어둔 할 일을 그대로 옮겨 옵니다. 매주 다시 만들지 않아도 돼요.
@@ -1570,7 +1678,8 @@ $('#viewParent').addEventListener('click', e=>{
     return copyLastWeek();
   }
   if(t.id === 'pExit') return switchView('today');
-  if(t.id === 'pPin')  return openPin('change');
+  if(t.id === 'pPin')   return openPin('change');
+  if(t.id === 'pPrint') return openPrint();
   if(t.id === 'pUpdate') return forceUpdate();
 
   if(t.id === 'gSave' || t.id === 'gTest'){
@@ -2633,6 +2742,234 @@ $('#wcfgSave').addEventListener('click', async ()=>{
   $('#wcfgModal').classList.remove('open');
   renderSched();
   toast('저장했어요');
+});
+
+/* ==========================================================
+   인쇄 — 넣을 것을 골라 종이에 맞게 뽑습니다
+   ========================================================== */
+const PR_PARTS = [
+  {id:'weektable', name:'주간 할 일 체크표', d:'월~일 표. 한 일에 손으로 체크하는 칸이 있어요', on:true},
+  {id:'today',     name:'오늘 할 일',        d:'오늘 것만 한 장에 큼직하게'},
+  {id:'sched',     name:'이번 주 일정',      d:'하교 시각과 학원·약속 (구글 캘린더)'},
+  {id:'timetable', name:'시간표',            d:'요일별 과목'},
+  {id:'supplies',  name:'준비물',            d:'요일별 챙길 것'},
+  {id:'english',   name:'영어 기록',         d:'단계·하루 목표와 이번 주 한 시간'}
+];
+
+let prWeek = 'this', prBlank = 0;
+let prOn = new Set(PR_PARTS.filter(p=>p.on).map(p=>p.id));
+
+function prMonday(){
+  const ws = weekStart(todayKey());
+  return prWeek === 'next' ? addDays(ws, 7) : ws;
+}
+
+/* 위젯에 저장해 둔 요일별 줄글(시간표·준비물)을 꺼냅니다 */
+function prWidgetPlan(type){
+  const w = (db.widgets || []).find(x => x.type === type);
+  return w && w.plan ? w.plan : '';
+}
+
+/* --- 주간 할 일 체크표 --- */
+function prWeekTable(){
+  const mon = prMonday();
+  const days = [...Array(7)].map((_,i)=>addDays(mon, i));
+  days.forEach(ensureRoutines);
+
+  /* 시간대 → 할 일 이름 목록 (그 주에 한 번이라도 나오는 것) */
+  const rows = [];
+  slots().forEach(s=>{
+    const names = [];
+    days.forEach(k => itemsOf(k).filter(i=>i.slot===s.id).forEach(i=>{
+      if(!names.includes(i.label)) names.push(i.label);
+    }));
+    if(names.length) rows.push({slot:s, names});
+  });
+  if(!rows.length) return '';
+
+  const has = (name, k) => itemsOf(k).some(i => i.label === name);
+
+  return `<div class="pr-block">
+    <div class="pr-h">할 일</div>
+    <table class="pr">
+      <tr><th style="width:40%">하는 일</th>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr>
+      ${rows.map(r=>`
+        <tr class="slot"><td colspan="8">${r.slot.emoji} ${esc(r.slot.name)}</td></tr>
+        ${r.names.map(n=>`
+          <tr>
+            <td class="nm">${esc(n)}</td>
+            ${days.map(k => has(n, k)
+              ? `<td class="ck"><span class="pr-box"></span></td>`
+              : `<td class="ck off"></td>`).join('')}
+          </tr>`).join('')}
+      `).join('')}
+    </table>
+    <p class="pr-note">한 일은 칸에 ✓ 표시해요. 회색 칸은 그 날 하지 않는 일이에요.</p>
+  </div>`;
+}
+
+/* --- 오늘 할 일 --- */
+function prToday(){
+  const k = todayKey();
+  ensureRoutines(k);
+  const list = itemsOf(k);
+  if(!list.length) return '';
+  const d = parseKey(k);
+  return `<div class="pr-block">
+    <div class="pr-h">오늘 할 일 — ${d.getMonth()+1}월 ${d.getDate()}일 ${DAYS[dowOf(k)]}요일</div>
+    ${slots().map(s=>{
+      const its = list.filter(i=>i.slot===s.id);
+      if(!its.length) return '';
+      return `<div style="margin-bottom:3mm">
+        <div style="font-weight:800; font-size:11pt; margin:2mm 0 1mm">${s.emoji} ${esc(s.name)}</div>
+        <ul class="pr-list">${its.map(i=>
+          `<li><span class="pr-box"></span><span>${esc(i.label)}</span>${
+            i.durationMin ? `<span style="margin-left:auto; color:#666; font-size:10pt">${i.durationMin}분</span>` : ''}</li>`
+        ).join('')}</ul></div>`;
+    }).join('')}
+  </div>`;
+}
+
+/* --- 이번 주 일정 (구글 캘린더) --- */
+function prSched(){
+  const c = gcal().cache;
+  if(!c) return '';
+  const mon = prMonday();
+  const rows = DAYS.map((name, i)=>{
+    const k = addDays(mon, i);
+    const d = c.days[k];
+    if(!d) return `<tr><td class="nm">${name}</td><td></td><td></td></tr>`;
+    const evs = (d.events || []).map(e =>
+      `${e.allDay ? '' : hhmm(e.start) + ' '}${esc(e.title)}`).join(', ');
+    return `<tr>
+      <td class="nm" style="width:12%">${name}</td>
+      <td style="width:20%; text-align:center">${d.dismissal ? toAmPm(d.dismissal) : ''}</td>
+      <td>${evs}</td></tr>`;
+  }).join('');
+  return `<div class="pr-block">
+    <div class="pr-h">이번 주 일정</div>
+    <table class="pr">
+      <tr><th>요일</th><th>하교</th><th>일정</th></tr>
+      ${rows}
+    </table>
+  </div>`;
+}
+
+/* --- 시간표 · 준비물 (요일별 줄글) --- */
+function prPlanTable(type, title, note){
+  const text = prWidgetPlan(type);
+  const byDay = DAYS.map((_, i)=>lineFor(text, i));
+  if(!byDay.some(a=>a.length)) return '';
+  return `<div class="pr-block">
+    <div class="pr-h">${title}</div>
+    <table class="pr">
+      <tr>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr>
+      <tr>${byDay.map(a=>`<td style="vertical-align:top; height:24mm; font-size:10pt">${
+        a.length ? a.map(x=>esc(x)).join('<br>') : ''}</td>`).join('')}</tr>
+    </table>
+    ${note ? `<p class="pr-note">${note}</p>` : ''}
+  </div>`;
+}
+
+/* --- 영어 기록 --- */
+function prEnglish(){
+  const e = db.english;
+  if(!e) return '';
+  const mon = prMonday();
+  const CATN = {listen:'흘려듣기', focus:'집중듣기', read:'책읽기', extra:'학습서', output:'말하기·쓰기', korean:'한글책'};
+  const cats = Object.keys(CATN);
+  const log = e.log || {};
+  const mins = (k, c) => Math.round(((log[k] && log[k][c]) || 0) / 60);
+  const any = cats.some(c => DAYS.some((_,i)=> mins(addDays(mon,i), c) > 0));
+
+  return `<div class="pr-block">
+    <div class="pr-h">영어</div>
+    <p class="pr-note" style="margin:0 0 2.5mm">
+      단계 <b>${esc(e.stage || '-')}</b>${e.level ? ` · 책 레벨 <b>${esc(e.level)}</b>` : ''}
+    </p>
+    <table class="pr">
+      <tr><th style="width:26%">하는 것</th>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr>
+      ${cats.map(c=>`
+        <tr><td class="nm">${CATN[c]}</td>${DAYS.map((_,i)=>{
+          const m = mins(addDays(mon, i), c);
+          return `<td class="ck">${ any ? (m ? m : '') : '<span class="pr-box"></span>' }</td>`;
+        }).join('')}</tr>`).join('')}
+    </table>
+    <p class="pr-note">${ any ? '숫자는 그 날 한 시간(분)이에요.' : '한 날에 분을 적거나 ✓ 해요.' }</p>
+  </div>`;
+}
+
+function prBlankLines(){
+  if(!prBlank) return '';
+  return `<div class="pr-block">
+    <div class="pr-h">메모</div>
+    ${[...Array(prBlank)].map(()=>`<div class="pr-line"></div>`).join('')}
+  </div>`;
+}
+
+function buildPrint(){
+  const mon = prMonday(), sun = addDays(mon, 6);
+  const a = parseKey(mon), b = parseKey(sun);
+  const title = ($('#prTitle').value || '').trim() || '우리 아이 한 주';
+
+  const parts = [];
+  if(prOn.has('weektable')) parts.push(prWeekTable());
+  if(prOn.has('today'))     parts.push(prToday());
+  if(prOn.has('sched'))     parts.push(prSched());
+  if(prOn.has('timetable')) parts.push(prPlanTable('timetable', '시간표'));
+  if(prOn.has('supplies'))  parts.push(prPlanTable('supplies', '준비물', '챙긴 것은 ✓ 해요.'));
+  if(prOn.has('english'))   parts.push(prEnglish());
+  parts.push(prBlankLines());
+
+  const body = parts.filter(Boolean).join('');
+  const html = `<div class="pr-sheet">
+    <div class="pr-title">${esc(title)}</div>
+    <div class="pr-sub">${a.getMonth()+1}월 ${a.getDate()}일 ~ ${b.getMonth()+1}월 ${b.getDate()}일</div>
+    ${ body || `<p style="color:#666">넣을 것을 하나 이상 골라 주세요.</p>` }
+  </div>`;
+
+  $('#printArea').innerHTML = html;
+  $('#printPreview').innerHTML = html;
+}
+
+function paintPrintPicks(){
+  $('#prPick').innerHTML = PR_PARTS.map(p=>`
+    <label class="${prOn.has(p.id)?'on':''}">
+      <input type="checkbox" data-pr="${p.id}" ${prOn.has(p.id)?'checked':''}>
+      <span>${esc(p.name)}<span class="d">${esc(p.d)}</span></span>
+    </label>`).join('');
+  document.querySelectorAll('#prWeek [data-prw]').forEach(b=>
+    b.classList.toggle('on', b.dataset.prw === prWeek));
+  document.querySelectorAll('#prBlank [data-prb]').forEach(b=>
+    b.classList.toggle('on', +b.dataset.prb === prBlank));
+}
+
+function openPrint(){
+  if(!$('#prTitle').value) $('#prTitle').value = '우리 아이 한 주';
+  paintPrintPicks();
+  buildPrint();
+  $('#printModal').classList.add('open');
+  $('#printModal .sheet').scrollTop = 0;
+}
+
+$('#prPick').addEventListener('change', e=>{
+  const b = e.target.closest('[data-pr]'); if(!b) return;
+  b.checked ? prOn.add(b.dataset.pr) : prOn.delete(b.dataset.pr);
+  paintPrintPicks(); buildPrint();
+});
+$('#prWeek').addEventListener('click', e=>{
+  const b = e.target.closest('[data-prw]'); if(!b) return;
+  prWeek = b.dataset.prw; paintPrintPicks(); buildPrint();
+});
+$('#prBlank').addEventListener('click', e=>{
+  const b = e.target.closest('[data-prb]'); if(!b) return;
+  prBlank = +b.dataset.prb; paintPrintPicks(); buildPrint();
+});
+$('#prTitle').addEventListener('input', buildPrint);
+$('#prGo').addEventListener('click', ()=>{
+  buildPrint();
+  $('#printModal').classList.remove('open');
+  setTimeout(()=>window.print(), 120);     // 창이 닫힌 뒤에 인쇄
 });
 
 /* ==========================================================
