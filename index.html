@@ -10,7 +10,6 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="english.css">
 <title>오늘 할 일</title>
 <style>
   :root{
@@ -718,9 +717,6 @@
   <!-- 일정 (구글 캘린더) -->
   <section id="viewSched" style="display:none"></section>
 
-  <!-- 엄마표 영어 (english.js) -->
-  <section id="viewEng" style="display:none"></section>
-
   <!-- 부모 모드 -->
   <section id="viewParent" style="display:none"></section>
 </div>
@@ -728,7 +724,6 @@
 <nav class="tabbar">
   <button class="tab on" data-view="today">할 일</button>
   <button class="tab" data-view="sched">내 일정</button>
-  <button class="tab" data-view="eng">영어</button>
 </nav>
 
 <!-- 잠금 -->
@@ -922,7 +917,7 @@
 </div>
 
 <script>
-const APP_VERSION = '2026-10-07a';
+const APP_VERSION = '2026-10-20a';
 const $ = s => document.querySelector(s);
 
 /* ══════════════════════════════════════════════════════════
@@ -1616,7 +1611,16 @@ function renderParent(){
       </p>
     </div>
 
-    ${enParentCard()}
+    ${ db.english ? `
+    <div class="pcard">
+      <h4>🔤 엄마표 영어 <span style="color:var(--muted);font-weight:600">· 따로 떼어냈어요</span></h4>
+      <p class="hint" style="margin:0 0 12px">
+        영어는 이제 <b>따로 만든 영어 앱</b>에서 해요. 여기 남아 있는 기록
+        (책 ${(db.english.books||[]).length}권 · 기록 ${Object.keys(db.english.log||{}).length}일)을
+        내려받아서 영어 앱의 ⚙️ 설정 → <b>백업 불러오기</b>로 옮기세요.
+      </p>
+      <button class="btn ghost wide" id="pEngExport">영어 기록 내려받기</button>
+    </div>` : '' }
 
     <div class="pcard">
       <h4>🔄 앱 버전 <span style="color:var(--muted);font-weight:600">${APP_VERSION}</span></h4>
@@ -1676,6 +1680,16 @@ $('#viewParent').addEventListener('click', e=>{
   if(t.dataset.copy){
     editWeek = t.dataset.copy === 'next' ? addDays(weekStart(todayKey()), 7) : weekStart(todayKey());
     return copyLastWeek();
+  }
+  if(t.id === 'pEngExport'){
+    const blob = new Blob([JSON.stringify({kind:'english-backup', savedAt:new Date().toISOString(), english:db.english}, null, 1)],
+                          {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `영어기록-${todayKey()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+    return toast('내려받았어요 · 영어 앱에서 불러오세요');
   }
   if(t.id === 'pExit') return switchView('today');
   if(t.id === 'pPin')   return openPin('change');
@@ -2752,8 +2766,7 @@ const PR_PARTS = [
   {id:'today',     name:'오늘 할 일',        d:'오늘 것만 한 장에 큼직하게'},
   {id:'sched',     name:'이번 주 일정',      d:'하교 시각과 학원·약속 (구글 캘린더)'},
   {id:'timetable', name:'시간표',            d:'요일별 과목'},
-  {id:'supplies',  name:'준비물',            d:'요일별 챙길 것'},
-  {id:'english',   name:'영어 기록',         d:'단계·하루 목표와 이번 주 한 시간'}
+  {id:'supplies',  name:'준비물',            d:'요일별 챙길 것'}
 ];
 
 let prWeek = 'this', prBlank = 0;
@@ -2871,33 +2884,6 @@ function prPlanTable(type, title, note){
   </div>`;
 }
 
-/* --- 영어 기록 --- */
-function prEnglish(){
-  const e = db.english;
-  if(!e) return '';
-  const mon = prMonday();
-  const CATN = {listen:'흘려듣기', focus:'집중듣기', read:'책읽기', extra:'학습서', output:'말하기·쓰기', korean:'한글책'};
-  const cats = Object.keys(CATN);
-  const log = e.log || {};
-  const mins = (k, c) => Math.round(((log[k] && log[k][c]) || 0) / 60);
-  const any = cats.some(c => DAYS.some((_,i)=> mins(addDays(mon,i), c) > 0));
-
-  return `<div class="pr-block">
-    <div class="pr-h">영어</div>
-    <p class="pr-note" style="margin:0 0 2.5mm">
-      단계 <b>${esc(e.stage || '-')}</b>${e.level ? ` · 책 레벨 <b>${esc(e.level)}</b>` : ''}
-    </p>
-    <table class="pr">
-      <tr><th style="width:26%">하는 것</th>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr>
-      ${cats.map(c=>`
-        <tr><td class="nm">${CATN[c]}</td>${DAYS.map((_,i)=>{
-          const m = mins(addDays(mon, i), c);
-          return `<td class="ck">${ any ? (m ? m : '') : '<span class="pr-box"></span>' }</td>`;
-        }).join('')}</tr>`).join('')}
-    </table>
-    <p class="pr-note">${ any ? '숫자는 그 날 한 시간(분)이에요.' : '한 날에 분을 적거나 ✓ 해요.' }</p>
-  </div>`;
-}
 
 function prBlankLines(){
   if(!prBlank) return '';
@@ -2918,7 +2904,6 @@ function buildPrint(){
   if(prOn.has('sched'))     parts.push(prSched());
   if(prOn.has('timetable')) parts.push(prPlanTable('timetable', '시간표'));
   if(prOn.has('supplies'))  parts.push(prPlanTable('supplies', '준비물', '챙긴 것은 ✓ 해요.'));
-  if(prOn.has('english'))   parts.push(prEnglish());
   parts.push(prBlankLines());
 
   const body = parts.filter(Boolean).join('');
@@ -2978,7 +2963,6 @@ $('#prGo').addEventListener('click', ()=>{
 function switchView(v){
   $('#viewToday').style.display  = v==='today'  ? '' : 'none';
   $('#viewSched').style.display  = v==='sched'  ? '' : 'none';
-  $('#viewEng').style.display    = v==='eng'    ? '' : 'none';
   $('#viewParent').style.display = v==='parent' ? '' : 'none';
   document.querySelector('.tabbar').style.display = v==='parent' ? 'none' : 'flex';
   $('#gearBtn').style.display = v==='parent' ? 'none' : '';
@@ -2992,7 +2976,6 @@ function switchView(v){
 
   if(v==='today'){ $('#helloText').textContent = '할 일';    renderToday(); }
   if(v==='sched'){ $('#helloText').textContent = '내 일정';  renderSched(); loadSchedule(); }
-  if(v==='eng'){   $('#helloText').textContent = '영어';     renderEnglish(); }
   if(v==='parent'){$('#helloText').textContent = '설정';     renderParent(); }
 }
 document.querySelectorAll('.tab').forEach(t=>{
@@ -3065,6 +3048,5 @@ async function forceUpdate(){
   }, 60000);
 })();
 </script>
-<script src="english.js"></script>
 </body>
 </html>
